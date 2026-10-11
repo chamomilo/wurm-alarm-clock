@@ -1,0 +1,73 @@
+apply plugin: 'java'
+
+group = 'org.chamomilo.wurm.alarmclock'
+version = '0.2.6'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+def referencePath = findProperty('chamomiloUpdaterReference') ?: System.getenv('CHAMOMILO_UPDATER_REFERENCE') ?: 'C:/projects/updater'
+def clientLibs = file(findProperty('wurmClientLibDir') ?: new File(file(referencePath), 'libs'))
+dependencies {
+    compileOnly fileTree(clientLibs) { include 'client-patched.jar', 'common.jar', 'javassist.jar', 'modlauncher.jar' }
+    testImplementation fileTree(clientLibs) { include '*.jar' }
+}
+tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+test { testLogging { events 'failed'; exceptionFormat 'full' } }
+jar {
+    archiveName = 'alarmclock.jar'
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest.attributes('Implementation-Title': 'Chamomilo Alarm Clock', 'Implementation-Version': project.version)
+}
+task verifyAlarmUi(type: JavaExec, dependsOn: testClasses) {
+    classpath = sourceSets.test.runtimeClasspath
+    def javaFx = findProperty('wurmJavaFxJar') ?: System.getenv('WURM_JFX')
+    if (javaFx) classpath += files(javaFx)
+    main = 'org.chamomilo.wurm.alarmclock.AlarmUiProbe'
+    args file("${buildDir}/preview").absolutePath
+}
+check.dependsOn verifyAlarmUi
+task dist(type: Zip, dependsOn: build) {
+    archiveName = "alarmclock-${project.version}.zip"
+    destinationDir = file('dist')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from('mods/alarmclock.properties') { into 'mods' }
+    from(jar) { into 'mods/alarmclock' }
+    from('README.txt')
+}
+ext.chamomiloUpdate = [id: 'alarmclock', name: 'Alarm Clock', repo: 'chamomilo/wurm-alarm-clock',
+    asset: 'alarmclock-{version}.zip', properties: 'mods/alarmclock.properties',
+    main: 'src/main/java/org/chamomilo/wurm/alarmclock/AlarmClockMod.java']
+apply from: 'gradle/chamomilo-updater.gradle'
+
+// A release snapshot may isolate concurrent builds, but must still be current when ZIP creation starts.
+dist.doFirst {
+    def canonicalRoot = file('C:/projects/updater')
+    if (!canonicalRoot.isDirectory()) return
+    def canonicalInfo = new Properties()
+    new File(canonicalRoot, 'version.properties').withInputStream { canonicalInfo.load(it) }
+    def selectedInfo = new Properties()
+    new File(file(chamomiloUpdaterReference), 'version.properties').withInputStream { selectedInfo.load(it) }
+    if (canonicalInfo.getProperty('version') != selectedInfo.getProperty('version'))
+        throw new GradleException('The canonical updater changed during the build; refresh the release snapshot before packaging.')
+    if (file(chamomiloUpdaterReference).canonicalPath != file('C:/projects/updater').canonicalPath) {
+        def selectedRoot = file(chamomiloUpdaterReference)
+        def inputPaths = { root ->
+            def paths = ['build.gradle', 'settings.gradle', 'version.properties', 'chamomilo-mods.properties'] as Set
+            ['src', 'gradle', 'dependencies'].each { directory ->
+                fileTree(new File(root, directory)).files.each { item ->
+                    paths.add(root.toPath().relativize(item.toPath()).toString())
+                }
+            }
+            paths
+        }
+        def canonicalPaths = inputPaths(canonicalRoot)
+        if (canonicalPaths != inputPaths(selectedRoot))
+            throw new GradleException('The canonical updater input files changed during the build.')
+        canonicalPaths.each { path ->
+            def sha256 = { target -> java.security.MessageDigest.getInstance('SHA-256').digest(target.bytes).encodeHex().toString() }
+            if (sha256(new File(canonicalRoot, path)) != sha256(new File(selectedRoot, path)))
+                throw new GradleException('The canonical updater input changed during the build: ' + path)
+        }
+    }
+}

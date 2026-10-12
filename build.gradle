@@ -1,7 +1,7 @@
 apply plugin: 'java'
 
 group = 'org.chamomilo.wurm.alarmclock'
-version = '0.2.7'
+version = '0.2.8'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 def referencePath = findProperty('chamomiloUpdaterReference') ?: System.getenv('CHAMOMILO_UPDATER_REFERENCE') ?: 'C:/projects/updater'
@@ -34,6 +34,15 @@ task dist(type: Zip, dependsOn: build) {
     from('mods/alarmclock.properties') { into 'mods' }
     from(jar) { into 'mods/alarmclock' }
     from('README.txt')
+    doLast {
+        def zip = new java.util.zip.ZipFile(archivePath)
+        try {
+            def actual = java.util.Collections.list(zip.entries()).findAll { !it.directory }*.name
+            def expected = ['README.txt', 'mods/alarmclock.properties', 'mods/alarmclock/alarmclock.jar']
+            if (actual.size() != expected.size() || actual.toSet() != expected.toSet())
+                throw new GradleException('Installable ZIP must contain only the mod descriptor, JAR and README.txt: ' + actual)
+        } finally { zip.close() }
+    }
 }
 ext.chamomiloUpdate = [id: 'alarmclock', name: 'Alarm Clock', repo: 'chamomilo/wurm-alarm-clock',
     asset: 'alarmclock-{version}.zip', properties: 'mods/alarmclock.properties',

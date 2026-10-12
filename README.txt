@@ -1,11 +1,17 @@
-Chamomilo Alarm Clock 0.2.7
+Chamomilo Alarm Clock 0.2.8
 https://github.com/chamomilo/wurm-alarm-clock
 
 Installation
 Download the latest alarmclock ZIP from GitHub Releases. Extract its mods folder into
 the Wurm Unlimited client folder that already has the Wurm client mod launcher.
-Restart the client. The shared Chamomilo updater and interface kit are embedded;
+Restart the client. Chamomilo updater 1.4.1 and interface kit 0.4.11 are embedded;
 no separate updater installation is required.
+
+The installable ZIP contains only:
+  README.txt
+  mods/alarmclock.properties
+  mods/alarmclock/alarmclock.jar
+Screenshots and the illustrated guide are available in the GitHub repository.
 
 HUD and controls
 The small alarm clock is visible by default on the left side of the HUD.
@@ -32,7 +38,7 @@ Default alarms
 Food, Water, Prayer, Meditation and Favor have distinct colored card backgrounds
 and gentle chimes. Custom timers have violet cards. Test chime lets you learn
 each sound. A ringing clock animates above the large native screen message for
-three seconds. Reminders use Wurm's native large system font and fade, without a
+three seconds. Reminders use plain 36 px native system text and fade, without a
 caption plate. Text remains visible with Sound or Animation disabled. Simultaneous
 chimes are queued so they remain distinguishable.
 
@@ -61,15 +67,5 @@ Alarm Clock participates in the shared Chamomilo updater and appears last in
 its catalogue with the medieval clock logo. Its release asset is
 alarmclock-{version}.zip. Updates are installed manually from the downloaded ZIP.
 
-Building from source
-Use JDK 8 and Gradle 5.3.1 through the wrapper in the canonical Chamomilo updater
-reference. The optional updater-reference ZIP in this release supplies that
-reference; extract it outside this repository. Supply the required native
-client/modlauncher libraries in the reference's libs folder. Proprietary client
-libraries are not distributed. Set JAVA_HOME and optionally GRADLE_USER_HOME.
-Run build.ps1 -UpdaterReference <reference-directory> -JavaFxJar <jfxrt.jar>.
-Optional parameters: -JavaHome <JDK-directory>, -ClientLibDir <libraries-directory>,
-and -UiKitReference <interface-kit-directory> for its additional embedding check.
-The build tests alarms, settings compatibility, native hooks and interface
-layout; it verifies the complete embedded updater and produces the installable
-ZIP in dist. In-game rendering and live server sessions require manual testing.
+Source code and build instructions are available in the GitHub repository.
+Latest release: https://github.com/chamomilo/wurm-alarm-clock/releases/latest

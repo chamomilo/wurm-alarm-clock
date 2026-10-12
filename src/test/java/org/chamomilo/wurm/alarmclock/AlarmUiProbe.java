@@ -11,6 +11,8 @@ public final class AlarmUiProbe {
         fonts.getClassInitializer().setBody("{}");
         fonts.getDeclaredMethod("getText", new CtClass[]{pool.get("java.lang.String")})
                 .setBody("{ return new com.wurmonline.client.renderer.gui.AlarmClockLayoutProbe.ProbeFont($1); }");
+        pool.get(gui + "text.AlarmClockSystemFont").getDeclaredMethod("create")
+                .setBody("{ return new com.wurmonline.client.renderer.gui.AlarmClockLayoutProbe.ProbeFont($1, false); }");
         CtClass options = pool.get("com.wurmonline.client.options.Options");
         options.getClassInitializer().setBody("{}");
         CtClass component = pool.get(gui + "WurmComponent");
@@ -19,7 +21,6 @@ public final class AlarmUiProbe {
                 + "AlarmClockLayoutProbe.rect($2,$3,$4,$5,$6,$7,$8,$9); }");
         CtClass hud = pool.get(gui + "HeadsUpDisplay");
         hud.getClassInitializer().setBody("{ scissor = new com.wurmonline.client.renderer.backend.ScissorControl(); }");
-        hud.getDeclaredMethod("addOnscreenMessage").setBody("{ " + gui + "AlarmClockLayoutProbe.onscreen($1,$2,$3,$4,$5); }");
         CtClass scissor = pool.get("com.wurmonline.client.renderer.backend.ScissorControl");
         scissor.getDeclaredMethod("pushClip").setBody("{ return " + gui + "AlarmClockLayoutProbe.clip($1,$2,$3,$4); }");
         scissor.getDeclaredMethod("popClip").setBody("{ " + gui + "AlarmClockLayoutProbe.unclip(); }");

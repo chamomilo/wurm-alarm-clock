@@ -16,6 +16,7 @@ public final class AlarmClockBridge {
     private final AlarmClockWindow window;
     private final AlarmClockLauncher launcher;
     private final AlarmClockAlert alert=new AlarmClockAlert();
+    private final AlarmClockScreenMessages messages=new AlarmClockScreenMessages();
     private final AlarmSounds sounds;
     private final AlarmEngine engine;
     private boolean alertVisible, soundWasEnabled;
@@ -39,7 +40,13 @@ public final class AlarmClockBridge {
         SavePosManager positions = (SavePosManager) field.get(hud);
         positions.registerAndRefresh(window, "alarmclock.window");
         positions.registerAndRefresh(launcher, "alarmclock.launcher");
+        java.util.List<WurmComponent> components=hud.getComponents();
+        synchronized(components) { components.add(messages); }
         showLauncher(false);
+    }
+    public void remind(Alarm alarm, String message) {
+        messages.show(message, alarm.reminderColor());
+        ring(alarm);
     }
     public void ring(Alarm alarm) {
         if(engine.options().sound)sounds.enqueue(Chime.forAlarm(alarm));
@@ -58,7 +65,7 @@ public final class AlarmClockBridge {
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { if(visible){if(!components.contains(alert))components.add(alert);}else components.remove(alert); }
     }
-    public void stopEffects() { sounds.clear();alert.clear();setAlertVisible(false);alertVisible=false; }
+    public void stopEffects() { sounds.clear();alert.clear();messages.clear();setAlertVisible(false);alertVisible=false; }
     public void showLauncher(boolean resetPosition) {
         if (resetPosition) launcher.moveToDefault();
         else launcher.ensureVisible();
@@ -75,5 +82,9 @@ public final class AlarmClockBridge {
             if (entry.getValue() == launcher && !entry.getKey().getLabel().equals(Messages.t("launcher")))
                 entry.getKey().setLabel(Messages.t("launcher"));
     }
-    public void dispose() { stopEffects();window.disposeEditor(); hud.removeComponent(window); hud.removeComponent(launcher); }
+    public void dispose() {
+        stopEffects();window.disposeEditor();hud.removeComponent(window);hud.removeComponent(launcher);
+        java.util.List<WurmComponent> components=hud.getComponents();
+        synchronized(components) { components.remove(messages); }
+    }
 }

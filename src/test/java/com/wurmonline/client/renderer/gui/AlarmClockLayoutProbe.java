@@ -21,10 +21,10 @@ public final class AlarmClockLayoutProbe {
     private static final Map<String,BufferedImage> tintedAssets=new HashMap<String,BufferedImage>();
     private static final Deque<Shape> clips=new LinkedList<Shape>();
     private static final Map<String,Point> labels=new HashMap<String,Point>();
+    private static final Map<String,Integer> labelSizes=new HashMap<String,Integer>();
+    private static final Map<String,Color> labelColors=new HashMap<String,Color>();
     private static Path output;
     private static int previews;
-    private static String lastMessage;
-    private static Color lastMessageColor;
     private static long previewTime;
     private static final java.util.List<Chime> previewChimes=new ArrayList<Chime>();
     public static long previewTime() { return previewTime; }
@@ -309,15 +309,12 @@ public final class AlarmClockLayoutProbe {
             check(engine.dueAt(prayer)>=before+1_200_000&&engine.dueAt(meditation)>=before+1_800_000,"Different completions in one HUD tick are both retained");
         } finally { instance.set(null,previous); }
     }
-    public static void onscreen(String message,float red,float green,float blue,byte type) {
-        check(type==1,"Reminders use the native large on-screen viewer");
-        lastMessage=message;lastMessageColor=new Color(red,green,blue);
-    }
     private static void verifyRingingOverlay() throws Exception {
         AlarmClockAlert alert=new AlarmClockAlert();Alarm meditation=AlarmEngine.defaults().get(3);
         alert.ring(meditation);check(alert.tick(System.currentTimeMillis()-500),"Ring starts overlay");
         check(alert.getComponentAt(alert.x+150,alert.y+40)==null,"Ringing overlay lets mouse input pass through");
         preview("ringing-meditation",alert);
+        check(labels.isEmpty(),"Ringing animation has no small caption plate");
         long start=field(AlarmClockAlert.class,"started").getLong(alert);
         previewTime=start+600;BufferedImage first=snapshot(alert,1f);
         previewTime=start+700;check(!Arrays.equals(pixels(first),pixels(snapshot(alert,1f))),"Clock visibly moves between animation frames");
@@ -327,20 +324,48 @@ public final class AlarmClockLayoutProbe {
         preview("ringing-favor",alert);alert.clear();
     }
     private static void verifyNotificationColors() throws Exception {
-        AlarmClockMod mod=new AlarmClockMod();field(AlarmClockMod.class,"activeHud").set(mod,WurmComponent.hud);
+        AlarmClockMod mod=new AlarmClockMod();
         Map<String,Long> deadlines=new HashMap<String,Long>();deadlines.put("prayer",5000L);deadlines.put("meditation",6000L);
-        AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),mod::notifyPlayer,()->{},new ReminderOptions(),deadlines);
-        Alarm prayer=engine.alarms().get(2), meditation=engine.alarms().get(3);
-        prayer.message=meditation.message="Same editable message";
-        engine.tick(5000,true,Float.NaN,Float.NaN);
-        check(lastMessage.equals(prayer.message)&&lastMessageColor.equals(new Color(1f,.94f,.60f)),"Prayer retains gold reminders");
-        engine.tick(6000,true,Float.NaN,Float.NaN);
-        check(lastMessage.equals(meditation.message)&&lastMessageColor.equals(new Color(.55f,.85f,1f)),"Meditation uses light blue even with edited identical message text");
-        engine.tick(6250,true,Float.NaN,Float.NaN,65,65);
-        check(lastMessage.equals(engine.alarms().get(4).message)&&lastMessageColor.equals(new Color(.60f,.93f,.72f)),"Favor uses its own mint-green color in the native large message viewer");
-        Alarm favor=engine.alarms().get(4);favor.name=favor.message="Same editable message";
-        engine.tick(66_250,true,Float.NaN,Float.NaN,65,65);
-        check(lastMessage.equals(favor.message)&&lastMessageColor.equals(new Color(.60f,.93f,.72f)),"Favor keeps its color after renaming and editing the reminder");
+        ReminderOptions options=new ReminderOptions();options.sound=false;options.animation=false;
+        AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),mod::notifyPlayer,()->{},options,deadlines);
+        AlarmClockBridge bridge=new AlarmClockBridge(WurmComponent.hud,engine,()->false);
+        field(AlarmClockMod.class,"bridge").set(mod,bridge);
+        AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
+        try {
+            engine.tick(1000,true,.20f,Float.NaN);
+            verifySystemMessage(messages,"Eat, you have 20% food left.",new Color(1f,.94f,.60f),"food");
+            messages.clear();engine.tick(2000,true,Float.NaN,.20f);
+            verifySystemMessage(messages,"Drink, you have 20% water left.",new Color(1f,.94f,.60f),"water");
+            messages.clear();engine.tick(5000,true,Float.NaN,Float.NaN);
+            verifySystemMessage(messages,"It's time to pray.",new Color(1f,.94f,.60f),"prayer");
+            messages.clear();engine.tick(6000,true,Float.NaN,Float.NaN);
+            verifySystemMessage(messages,"It's time to meditate.",new Color(.55f,.85f,1f),"meditation");
+            messages.clear();engine.tick(6250,true,Float.NaN,Float.NaN,65,65);
+            verifySystemMessage(messages,engine.alarms().get(4).message,new Color(.60f,.93f,.72f),"favor");
+            for(Alarm alarm:engine.alarms()) {
+                alarm.name=alarm.message="Same editable message";messages.clear();mod.notifyPlayer(alarm,alarm.message);
+                snapshot(messages,1f);Alarm.ReminderColor color=alarm.reminderColor();
+                check(labelColors.get(alarm.message).equals(new Color(color.red,color.green,color.blue)),"Renaming retains reminder color: "+alarm.id);
+            }
+            check(messages.getComponentAt(960,270)==null,"System text is click-through");
+            check(WurmComponent.hud.getComponents().contains(messages),"Text remains attached with sound and animation disabled");
+            bridge.stopEffects();snapshot(messages,1f);check(labels.isEmpty(),"Disconnect clears all native system messages");
+        } finally { bridge.dispose(); }
+        check(!WurmComponent.hud.getComponents().contains(messages),"Disposing the HUD removes the system-message renderer");
+    }
+    private static void verifySystemMessage(AlarmClockScreenMessages messages,String text,Color color,String name) throws Exception {
+        preview("reminder-"+name,messages);
+        check(labels.containsKey(text)&&labelSizes.get(text)>=32,"Full reminder uses the large native system font: "+name);
+        check(labelColors.get(text).equals(color),"System text has the alarm color: "+name);
+        TextFont font=(TextFont)field(AlarmClockScreenMessages.class,"font").get(messages);
+        Point position=labels.get(text);
+        check(position.x==(WurmComponent.SCREEN_WIDTH-font.getWidth(text))/2&&position.y==WurmComponent.SCREEN_HEIGHT/4,"Native reminder is centered at the system-message position");
+        OnScreenMessageViewer viewer=(OnScreenMessageViewer)field(AlarmClockScreenMessages.class,"viewer").get(messages);
+        @SuppressWarnings("unchecked") java.util.List<OnScreenMessage> pending=(java.util.List<OnScreenMessage>)field(OnScreenMessageViewer.class,"messageList").get(viewer);
+        check(pending.size()==1&&pending.get(0).getMessage().equals(text),"Real Wurm message viewer receives the complete reminder");
+        pending.get(0).prepareRender(4f,position.x,position.y);
+        viewer.prepareRender(font,WurmComponent.SCREEN_WIDTH,WurmComponent.SCREEN_HEIGHT);
+        snapshot(messages,1f);check(labels.isEmpty(),"Native reminder fades out after three seconds");
     }
     private static void verifyFavorEditor(AlarmEngine engine) throws Exception {
         AlarmClockEditor editor=new AlarmClockEditor(engine.alarms().get(4),engine,()->{});
@@ -481,7 +506,7 @@ public final class AlarmClockLayoutProbe {
         }
     }
     private static BufferedImage snapshot(WurmComponent component,float alpha) {
-        graphics.setClip(null);rect(.03f,.028f,.022f,1f,0,0,canvas.getWidth(),canvas.getHeight());labels.clear();component.render(null,alpha);
+        graphics.setClip(null);rect(.03f,.028f,.022f,1f,0,0,canvas.getWidth(),canvas.getHeight());labels.clear();labelSizes.clear();labelColors.clear();component.render(null,alpha);
         BufferedImage result=new BufferedImage(component.width,component.height,BufferedImage.TYPE_INT_ARGB);
         Graphics2D copy=result.createGraphics();copy.drawImage(canvas,0,0,component.width,component.height,component.x,component.y,component.x+component.width,component.y+component.height,null);copy.dispose();return result;
     }
@@ -519,10 +544,11 @@ public final class AlarmClockLayoutProbe {
     public static final class ProbeFont extends TextFont {
         private final Font font;private final boolean characterAdvances;private int x,y;
         public ProbeFont(String name){this(new Font("Verdana",name.equals("bold")?Font.BOLD:Font.PLAIN,12),false);}
-        ProbeFont(Font font,boolean characterAdvances){this.font=font;this.characterAdvances=characterAdvances;}
+        public ProbeFont(Font font,boolean characterAdvances){this.font=font;this.characterAdvances=characterAdvances;}
         public void moveTo(int x,int y){this.x=x;this.y=y;}
         public int paint(Queue queue,String value,float r,float g,float b,float a){
-            check(a==1f,"Text opacity must ignore incoming HUD alpha");labels.put(value,new Point(x,y));graphics.setFont(font);graphics.setColor(new Color(r,g,b,a));
+            if(characterAdvances||font.getSize()<32)check(a==1f,"Text opacity must ignore incoming HUD alpha");
+            labels.put(value,new Point(x,y));labelSizes.put(value,font.getSize());labelColors.put(value,new Color(r,g,b,a));graphics.setFont(font);graphics.setColor(new Color(r,g,b,a));
             if(characterAdvances){int position=x;for(char c:value.toCharArray()){graphics.drawString(String.valueOf(c),position,y);position+=metrics().charWidth(c);}}
             else graphics.drawString(value,x,y);return getWidth(value);
         }

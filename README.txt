@@ -1,8 +1,8 @@
-Chamomilo Alarm Clock 0.2.6
+Chamomilo Alarm Clock 0.2.7
 https://github.com/chamomilo/wurm-alarm-clock
 
 Installation
-Download alarmclock-0.2.6.zip from GitHub Releases. Extract its mods folder into
+Download the latest alarmclock ZIP from GitHub Releases. Extract its mods folder into
 the Wurm Unlimited client folder that already has the Wurm client mod launcher.
 Restart the client. The shared Chamomilo updater and interface kit are embedded;
 no separate updater installation is required.
@@ -32,7 +32,8 @@ Default alarms
 Food, Water, Prayer, Meditation and Favor have distinct colored card backgrounds
 and gentle chimes. Custom timers have violet cards. Test chime lets you learn
 each sound. A ringing clock animates above the large native screen message for
-three seconds. Sound and Animation can be enabled independently. Simultaneous
+three seconds. Reminders use Wurm's native large system font and fade, without a
+caption plate. Text remains visible with Sound or Animation disabled. Simultaneous
 chimes are queued so they remain distinguishable.
 
 New alarm creates a Timer, Food, Water or Favor alarm. Edit only shows parameters

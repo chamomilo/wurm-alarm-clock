@@ -9,10 +9,9 @@ import java.util.*;
 final class AlarmClockAlert extends StaticComponent {
     private final Deque<Alarm> pending=new ArrayDeque<Alarm>();
     private final ChamomiloUiV1Canvas canvas=new ChamomiloUiV1Canvas(this);
-    private final ChamomiloUiV1Tag caption=new ChamomiloUiV1Tag("alarmclock.ringing.caption","");
     private Alarm active;
     private long started;
-    AlarmClockAlert() { super("Alarm Clock ringing");setSize(300,128);caption.setMaximumWidth(292); }
+    AlarmClockAlert() { super("Alarm Clock ringing");setSize(300,100); }
     void ring(Alarm alarm) {
         for(Alarm queued:pending)if(queued.id.equals(alarm.id))return;
         if(pending.size()<8)pending.addLast(alarm.copy());
@@ -21,10 +20,6 @@ final class AlarmClockAlert extends StaticComponent {
         if(active!=null&&now-started>=3000)active=null;
         if(active==null&&!pending.isEmpty()){active=pending.removeFirst();started=now;}
         setPosition(Math.max(0,(SCREEN_WIDTH-width)/2),Math.max(0,SCREEN_HEIGHT/4-height-18));
-        if(active!=null) {
-            String name=Messages.name(active);if(!caption.value().equals(name))caption.setText(name);
-            caption.setPosition(x+(width-caption.width)/2,y+99);
-        }
         return active!=null;
     }
     void clear() { active=null;pending.clear(); }
@@ -40,6 +35,5 @@ final class AlarmClockAlert extends StaticComponent {
         int spread=(int)Math.round(7+4*Math.sin(elapsed*8));
         for(int side:new int[]{-1,1})for(int ray=-1;ray<=1;ray++)
             AlarmClockGlyph.stroke(canvas,color,cx+side*(43+spread),cy+ray*18,cx+side*(53+spread),cy+ray*22,2);
-        caption.render(queue,1f);
     }
 }

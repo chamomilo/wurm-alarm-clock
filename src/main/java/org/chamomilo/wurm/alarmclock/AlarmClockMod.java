@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.*;
 
 public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable, ModListener, SharedLanguageCoordinator.Participant {
-    public static final String VERSION = "0.2.6";
+    public static final String VERSION = "0.2.7";
     public static final FavorReadings FAVOR_READINGS = new FavorReadings();
     private static final Logger LOG = Logger.getLogger(AlarmClockMod.class.getName());
     private static volatile AlarmClockMod instance;
@@ -104,9 +104,7 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
         }
     }
     public void notifyPlayer(Alarm alarm, String message) {
-        Alarm.ReminderColor color = alarm.reminderColor();
-        if (activeHud != null) activeHud.addOnscreenMessage(message, color.red, color.green, color.blue, (byte) 1);
-        if (bridge != null) bridge.ring(alarm);
+        if (bridge != null) bridge.remind(alarm, message);
     }
     public static void foodUpdated(PlayerObj player) { foodPlayer = player; }
     public static void waterUpdated(PlayerObj player) { waterPlayer = player; }

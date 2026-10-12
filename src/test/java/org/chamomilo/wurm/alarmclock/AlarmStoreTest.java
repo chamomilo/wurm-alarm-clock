@@ -7,6 +7,17 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmStoreTest {
+    @Test public void legacyBuiltInWaterAdoptsFiftyAndMinuteRepeatsOnlyOnce() throws Exception {
+        Path path=legacyFixture();Properties legacy=properties(path);
+        legacy.setProperty("alarm.1.enabled","false");legacy.setProperty("alarm.1.threshold","20");
+        legacy.setProperty("alarm.1.repeat","unused");legacy.setProperty("alarm.1.stopAt","5");
+        write(path,legacy);AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();
+        Alarm water=alarms.get(1);assertFalse(water.enabled);assertEquals(50,water.threshold);assertEquals(60_000,water.repeatMillis);
+        water.threshold=45;water.repeatMillis=90_000;store.save(alarms,"en");
+        Alarm restored=new AlarmStore(path).load().get(1);
+        assertFalse(restored.enabled);assertEquals(45,restored.threshold);assertEquals(90_000,restored.repeatMillis);
+        assertEquals("below-threshold",properties(path).getProperty("waterReminderMode"));
+    }
     @Test public void definitionsAndTimerDeadlinesSurviveUtf8RoundTrip() throws Exception {
         Path folder=Files.createTempDirectory("alarm-store-");Path path=folder.resolve("nested/alarms.properties");
         AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();
@@ -70,6 +81,12 @@ public class AlarmStoreTest {
         favor.enabled=false;favor.message="My spell reminder";store.save(restored,"ru");
         restored=store.load();assertEquals(5,restored.size());assertFalse(restored.get(4).enabled);
         assertEquals("My spell reminder",restored.get(4).message);
+        List<String> reminders=new ArrayList<String>();
+        AlarmEngine engine=new AlarmEngine(restored,(a,m)->reminders.add(a.id),()->{},store.options(),store.timerDeadlines());
+        engine.tick(1000,true,1,1,80,80);
+        engine.tick(61_000,true,1,1,79,80);engine.tick(62_000,true,1,1,80,80);
+        engine.tick(63_000,false,1,1,80,80);engine.tick(64_000,true,1,1,80,80);
+        assertFalse("Disabled Favor survives a restart, refill and reconnect",reminders.contains("favor"));
     }
     @Test public void addingFavorToAFullLegacySettingsFileStillAllowsTheNextLoad() throws Exception {
         Path path=Files.createTempFile("alarm-full-before-favor-",".properties");AlarmStore store=new AlarmStore(path);

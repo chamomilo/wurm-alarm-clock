@@ -1,73 +1,75 @@
-Chamomilo Alarm Clock 0.2.9
+Chamomilo Alarm Clock 0.3.3
 https://github.com/chamomilo/wurm-alarm-clock
 
-Installation
-Download the latest alarmclock ZIP from GitHub Releases. Extract its mods folder into
-the Wurm Unlimited client folder that already has the Wurm client mod launcher.
-Restart the client. Chamomilo updater 1.4.2 and interface kit 0.4.11 are embedded;
-no separate updater installation is required.
+Food, water, prayer, meditation and Favor reminders for Wurm Unlimited.
+Alarms keep running when the list window is closed.
 
-The installable ZIP contains only:
+INSTALLATION
+1. Install the Wurm Unlimited client mod launcher if it is not already installed.
+2. Extract this ZIP's mods folder into the Wurm Unlimited client folder.
+3. Restart the client.
+
+This ZIP contains exactly three files:
   README.txt
   mods/alarmclock.properties
   mods/alarmclock/alarmclock.jar
-Screenshots and the illustrated guide are available in the GitHub repository.
 
-HUD and controls
-The small alarm clock is visible by default on the left side of the HUD.
-Click it to open the alarm list; drag it to move. The Main menu also opens
-Alarm Clock. HUD Settings can show or hide the icon. Console commands:
+Chamomilo updater 1.5.0 and interface kit 0.4.11 are embedded in the JAR.
+No separate updater installation is required.
+
+DEFAULT ALARMS
+Food: at 20% remaining, then every lower whole percentage through 5%.
+  Eating rearms the monitor; below 5% it stays silent.
+Water: immediately below 50%, then every minute, including at 0%.
+  Refilling to 50% or above stops reminders. There is no lower cutoff.
+Prayer: after 20 minutes, then every minute. A successful prayer restarts
+  the timer when Restart after praying is enabled.
+Meditation: after 30 minutes, then every minute. A successful meditation
+  restarts the timer when Restart after meditation is enabled.
+Favor: when Favor reaches current Faith, then every minute while full.
+  Spending Favor stops reminders; refilling rearms them.
+
+New alarm creates custom timers or additional Food, Water and Favor alarms.
+Timer repeat 0 means one reminder. Water and Favor require positive repeats.
+Water has Alert below (%) and Repeat (minutes), without a Stop below setting.
+Older built-in Water settings migrate once to 50% / one minute, preserving
+its enabled state and message. Subsequent edits are retained.
+Prayer and meditation restart only after successful completion; starting,
+cancelling or failing the activity does not restart the timer.
+
+REMINDERS
+Every alarm shows large screen text with a three-second fade and also writes
+one copy to the existing shared Event channel in the same color.
+Food, Water, Prayer and custom timers use gold, Meditation light blue,
+and Favor mint green. No separate Event tab is created.
+Sound and Animation are independent switches; screen and Event text remain
+active when either is off. Test chime previews the selected alarm's sound.
+Reminder overlays let mouse input reach the game behind them.
+
+Disable on the card, or Enabled off in Settings, stops that alarm's reminders,
+removes its visible text and animation, and cancels queued chimes.
+The disabled choice survives restarts and reconnects. Saving an already-open
+Food, Water or Favor editor keeps that monitor disabled. Saving or enabling
+a timer starts a fresh countdown. Other alarms keep running.
+
+CONTROLS AND SETTINGS
+Click the HUD clock to open the list; drag it to move it. The Main menu opens
+Alarm Clock. HUD Settings can show or hide the clock icon.
+New alarm creates an alarm. Edit changes its message and relevant parameters.
+Disable / Enable turns an alarm off or on. Restart starts a fresh timer.
+Custom alarms can be deleted; built-in alarms stay in the list.
+Console commands:
   alarmclock      Open the list.
-  alarmclockshow  Restore and show the icon at its default position.
-Reminders continue while the list is closed. The toolbar contains New alarm,
-Sound and Animation. Manual Restart remains on each timer's own card.
+  alarmclockshow  Restore and show the HUD clock at its default position.
 
-Default alarms
-- Food: reminds at 20% remaining, then at each lower whole percentage through
-  5% inclusive. Message: Eat, you have {percent}% food left.
-- Water: the same independent rule. Message: Drink, you have {percent}% water left.
-- Prayer: waits 20 minutes, then reminds every minute. Successful prayer
-  automatically restarts the timer; its card has a persistent restart checkbox.
-- Meditation: waits 30 minutes, then reminds every minute in light blue.
-  Successful meditation automatically restarts its own timer and checkbox.
-- Favor: reminds immediately when Favor reaches the character's current Faith,
-  then every minute while full. Spending Favor stops reminders; refilling starts
-  them again. Message: Favor is full. It's time to cast a spell.
-  Favor has a mint-green message and displays the current value / maximum.
+Settings in the shared Mods Registry opens presentation options and every
+alarm's parameters, with hover help. Valid changes are saved and applied
+immediately. The updater selects the interface language: English, Brazilian
+Portuguese, German or Russian. Editable names and messages are kept as entered.
+Settings and deadlines are saved in .chamomilo/alarmclock.properties under the
+user's home folder, outside the game installation.
+Alarms stay silent while disconnected and resume without a burst of missed
+reminders. The mod does not perform game actions for the player.
 
-Food, Water, Prayer, Meditation and Favor have distinct colored card backgrounds
-and gentle chimes. Custom timers have violet cards. Test chime lets you learn
-each sound. A ringing clock animates above the large native screen message for
-three seconds. Reminders use plain 36 px native system text and fade, without a
-caption plate. Text remains visible with Sound or Animation disabled. Simultaneous
-chimes are queued so they remain distinguishable.
-Reminder text and ringing animation let mouse input reach the world and controls
-behind them, including while the reminder text is empty.
-
-New alarm creates a Timer, Food, Water or Favor alarm. Edit only shows parameters
-used by the selected type: Wait / Repeat for timers, Threshold / Stop below for
-Food and Water, and Repeat for Favor. Repeat 0 creates a one-shot timer; Favor
-requires a positive repeat interval. Saving or enabling a timer restarts it.
-Disabled alarms stay silent. Built-in alarms cannot be deleted.
-
-Automatic prayer and meditation restart uses the character's successful inbound
-server Event message. Starting, cancelling or failing an activity, chat and
-another player's activity do not restart timers. Turn off the relevant checkbox
-to use manual restart instead. Disabled alarms are never re-enabled automatically.
-
-Languages and settings
-The interface supports English, Brazilian Portuguese, German and Russian through
-the shared updater's language setting. Reminder text is English by default and
-can be edited. User names and messages are preserved across language changes.
-Settings are saved in the user's .chamomilo/alarmclock.properties outside the
-game folder. Timer deadlines survive restarts. No reminders are sent while
-disconnected; overdue timers resume without a burst of missed reminders.
-The mod does not pray, meditate, eat, drink or cast spells automatically.
-
-Updates
-Alarm Clock participates in the shared Chamomilo updater and appears last in
-its catalogue with the medieval clock logo. Its release asset is
-alarmclock-{version}.zip. Updates are installed manually from the downloaded ZIP.
-
-Source code and build instructions are available in the GitHub repository.
+Illustrated guide: https://github.com/chamomilo/wurm-alarm-clock
 Latest release: https://github.com/chamomilo/wurm-alarm-clock/releases/latest

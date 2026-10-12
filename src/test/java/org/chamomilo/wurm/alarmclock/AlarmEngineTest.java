@@ -5,7 +5,22 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmEngineTest {
-    @Test public void foodAndWaterTriggerIndependentlyAtEveryWholePercentThroughFive() {
+    @Test public void settingsEditsKeepTimerDeadlineExceptForAnExplicitDelayOrReenable() {
+        Alarm timer=Alarm.create(Alarm.Kind.TIMER,"Test","Message");
+        AlarmEngine engine=new AlarmEngine(Arrays.asList(timer),(a,m)->{},()->{});
+        engine.restart(timer,1000);long due=engine.dueAt(timer);
+        Alarm edited=timer.copy();edited.name="Renamed";engine.updateSettings(edited,"name",2000);
+        assertEquals(due,engine.dueAt(edited));
+        Alarm repeated=edited.copy();repeated.repeatMillis=120000;engine.updateSettings(repeated,"repeat",3000);
+        assertEquals(due,engine.dueAt(repeated));
+        Alarm disabled=repeated.copy();disabled.enabled=false;engine.updateSettings(disabled,"enabled",4000);
+        assertFalse(engine.alarms().get(0).enabled);assertEquals(due,engine.dueAt(disabled));
+        Alarm enabled=disabled.copy();enabled.enabled=true;engine.updateSettings(enabled,"enabled",5000);
+        assertEquals(5000+enabled.delayMillis,engine.dueAt(enabled));
+        Alarm delayed=enabled.copy();delayed.delayMillis=60000;engine.updateSettings(delayed,"delay",6000);
+        assertEquals(66000,engine.dueAt(delayed));
+    }
+    @Test public void foodTriggersAtEveryWholePercentThroughFive() {
         List<String> messages=new ArrayList<String>();
         AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->messages.add(m),()->{});
         engine.alarms().get(2).enabled=false;
@@ -17,10 +32,31 @@ public class AlarmEngineTest {
         assertEquals(16,messages.size());
         assertEquals("Eat, you have 20% food left.",messages.get(0));
         assertEquals("Eat, you have 5% food left.",messages.get(15));
-        engine.tick(4000,true,.04f,.2f);
-        assertEquals("Drink, you have 20% water left.",messages.get(16));
-        for(int percent=19;percent>=5;percent--)engine.tick(4000,true,.04f,percent/100f);
-        engine.tick(4000,true,.03f,.04f);assertEquals(32,messages.size());
+        engine.tick(4000,true,.04f,.8f);assertEquals(16,messages.size());
+    }
+    @Test public void waterRepeatsEveryMinuteStrictlyBelowFiftyWithoutALowerCutoff() {
+        Alarm water=AlarmEngine.defaults().get(1);water.stopAt=100;
+        List<String> messages=new ArrayList<String>();
+        AlarmEngine engine=new AlarmEngine(Collections.singletonList(water),(a,m)->messages.add(m),()->fail("Samples must not save settings"));
+        engine.tick(1000,true,1,.5f);assertTrue(messages.isEmpty());
+        engine.tick(1250,true,1,.49f);assertEquals(Arrays.asList("Drink, you have 49% water left."),messages);
+        engine.tick(61_249,true,1,.2f);assertEquals(1,messages.size());
+        engine.tick(61_250,true,1,.2f);assertEquals(2,messages.size());
+        engine.tick(121_250,true,1,0);assertEquals("Drink, you have 0% water left.",messages.get(2));
+        engine.tick(900_000,true,1,0);assertEquals(4,messages.size());
+        engine.tick(900_250,true,1,0);assertEquals(4,messages.size());
+        engine.tick(901_000,true,1,.5f);engine.tick(901_250,true,1,.49f);assertEquals(5,messages.size());
+    }
+    @Test public void waterDisableReconnectAndInvalidSamplesKeepRepeatsControlled() {
+        Alarm water=AlarmEngine.defaults().get(1);List<String> messages=new ArrayList<String>();
+        AlarmEngine engine=new AlarmEngine(Collections.singletonList(water),(a,m)->messages.add(m),()->{});
+        for(float sample:new float[]{Float.NaN,-1,1.1f,Float.POSITIVE_INFINITY})engine.tick(1000,true,1,sample);
+        engine.tick(1000,false,1,.1f);assertTrue(messages.isEmpty());
+        engine.tick(2000,true,1,.1f);assertEquals(1,messages.size());
+        engine.toggle(water,3000);engine.tick(90_000,true,1,0);assertEquals(1,messages.size());
+        engine.toggle(water,91_000);engine.tick(91_000,true,1,0);assertEquals(2,messages.size());
+        engine.tick(92_000,false,1,0);engine.tick(93_000,true,1,0);assertEquals(3,messages.size());
+        engine.resetSamples();engine.tick(94_000,true,1,0);assertEquals(4,messages.size());
     }
     @Test public void remainingMatchesInverseWurmReadingsAndFloatBoundaryIsStable() {
         assertEquals(.2f,AlarmEngine.remaining(.8f),.00001f);

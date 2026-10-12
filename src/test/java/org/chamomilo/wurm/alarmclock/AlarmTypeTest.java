@@ -14,7 +14,8 @@ public class AlarmTypeTest {
             alarm.name="My alarm";alarm.message="My reminder";assertSame(types[i],alarm.type());
             assertSame(chimes[i],Chime.forAlarm(alarm));assertSame(types[i].appearance.reminderColor,alarm.reminderColor());
         }
-        assertEquals(20,alarms.get(0).threshold);assertEquals(5,alarms.get(1).stopAt);
+        assertEquals(20,alarms.get(0).threshold);assertEquals(50,alarms.get(1).threshold);
+        assertEquals(Arrays.asList(AlarmType.Parameter.THRESHOLD,AlarmType.Parameter.REPEAT),AlarmType.WATER.parameters());
         assertEquals(1_200_000,alarms.get(2).delayMillis);assertEquals(1_800_000,alarms.get(3).delayMillis);
         assertEquals(60_000,alarms.get(4).repeatMillis);
     }
@@ -24,9 +25,10 @@ public class AlarmTypeTest {
         assertFalse(custom.autoRestart());assertSame(Chime.TIMER,Chime.forAlarm(custom));
     }
     @Test public void inactiveSettingsDoNotInvalidateFoodWaterFavorOrTimers() {
-        for(Alarm.Kind kind:new Alarm.Kind[]{Alarm.Kind.FOOD,Alarm.Kind.WATER}) {
+        for(Alarm.Kind kind:new Alarm.Kind[]{Alarm.Kind.FOOD}) {
             Alarm alarm=Alarm.create(kind,"Monitor","Reminder");alarm.delayMillis=-1;alarm.repeatMillis=-1;alarm.validate();
         }
+        Alarm water=Alarm.create(Alarm.Kind.WATER,"Water","Reminder");water.delayMillis=-1;water.stopAt=-100;water.validate();
         Alarm favor=Alarm.create(Alarm.Kind.FAVOR,"Favor","Reminder");
         favor.delayMillis=-1;favor.threshold=-100;favor.stopAt=200;favor.validate();
         Alarm timer=Alarm.create(Alarm.Kind.TIMER,"Timer","Reminder");
@@ -35,7 +37,7 @@ public class AlarmTypeTest {
     @Test public void activeParametersRejectInvalidDurationsThresholdsAndOneShotFavor() {
         Alarm food=Alarm.create(Alarm.Kind.FOOD,"Food","Reminder");food.stopAt=21;reject(food);
         food.stopAt=5;food.threshold=101;reject(food);
-        Alarm water=Alarm.create(Alarm.Kind.WATER,"Water","Reminder");water.stopAt=-1;reject(water);
+        Alarm water=Alarm.create(Alarm.Kind.WATER,"Water","Reminder");water.repeatMillis=0;reject(water);
         Alarm favor=Alarm.create(Alarm.Kind.FAVOR,"Favor","Reminder");favor.repeatMillis=0;reject(favor);
         favor.repeatMillis=999;reject(favor);favor.repeatMillis=AlarmType.MAX_DURATION+1;reject(favor);
         Alarm timer=Alarm.create(Alarm.Kind.TIMER,"Timer","Reminder");timer.delayMillis=0;reject(timer);

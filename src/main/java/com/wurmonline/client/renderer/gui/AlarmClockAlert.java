@@ -23,6 +23,10 @@ final class AlarmClockAlert extends StaticComponent {
         return active!=null;
     }
     void clear() { active=null;pending.clear(); }
+    void cancel(String alarmId) {
+        if(active!=null&&active.id.equals(alarmId))active=null;
+        pending.removeIf(alarm->alarm.id.equals(alarmId));
+    }
     // HUD selects bounds before getComponentAt; returning null alone crashes a press.
     @Override boolean isAvailable() { return false; }
     @Override public StaticComponent getComponentAt(int mx,int my) { return null; }

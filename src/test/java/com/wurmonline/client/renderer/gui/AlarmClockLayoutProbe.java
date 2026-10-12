@@ -27,6 +27,12 @@ public final class AlarmClockLayoutProbe {
     private static int previews;
     private static long previewTime;
     private static final java.util.List<Chime> previewChimes=new ArrayList<Chime>();
+    private static final java.util.List<String> eventMessages=new ArrayList<String>();
+    private static final java.util.List<Color> eventColors=new ArrayList<Color>();
+    public static void event(String channel,float r,float g,float b,String message) {
+        check(channel.equals(":Event"),"Reminders use Wurm's shared Event channel");
+        eventMessages.add(message);eventColors.add(new Color(r/255f,g/255f,b/255f));
+    }
     public static long previewTime() { return previewTime; }
     public static void main(String[] args) throws Exception {
         output=Paths.get(args[0]);Files.createDirectories(output);
@@ -38,6 +44,7 @@ public final class AlarmClockLayoutProbe {
         window.setLocation(20,20,780,710);
         preview("alarms-en",window);
         verifyToolbar(window);verifyActions(window,engine);verifyScroll(window,engine);
+        verifyFavorHudToggle();
         verifyLauncher();
         verifyHudLifecycle();
         verifyActivityCompletionCallbacks();verifyNotificationColors();
@@ -76,6 +83,10 @@ public final class AlarmClockLayoutProbe {
         graphics.dispose();System.out.println("ALARM_UI_OK: "+previews+" production previews; native menu/launcher opening, close/maximize, HUD visibility/recovery, saved positions, input, scrolling, grouped fonts, fixed alpha and localization");
     }
     private static void verifyToolbar(AlarmClockWindow window) throws Exception {
+        snapshot(window,1f);
+        check(labelSizes.get(Messages.t("title"))==20,"Title uses the updater's 20 px branded heading font");
+        check(UiTypography.width(Messages.t("title"),20,true,UiDensity.HIGH)<=window.width-120,"Localized window heading clears its chrome controls");
+        check(!labels.containsKey(Messages.t("intro"))&&!labels.containsKey("Alarm Clock "+AlarmClockMod.VERSION),"Crossed-out instruction and version lines are removed");
         Object body=field(AlarmClockWindow.class,"body").get(window);
         ChamomiloSkinnedButton create=(ChamomiloSkinnedButton)field(body.getClass(),"create").get(body);
         for(ChamomiloSkinnedButton b:new ChamomiloSkinnedButton[]{create}) for(boolean bold:new boolean[]{false,true}) {
@@ -157,6 +168,76 @@ public final class AlarmClockLayoutProbe {
         launcher.setPosition(20,20);launcher.leftPressed(25,25,1);launcher.leftReleased(25,25);check(opens[0]==1,"Launcher completed click opens window");
         launcher.leftPressed(25,25,1);launcher.mouseDragged(40,40);launcher.leftReleased(40,40);check(opens[0]==1,"Launcher dragging cancels open");
         preview("launcher",launcher);
+    }
+    private static void verifyFavorHudToggle() throws Exception {
+        HeadsUpDisplay previous=WurmComponent.hud;
+        try {
+            HeadsUpDisplay hud=fixtureHud();field(HeadsUpDisplay.class,"visible").setBoolean(hud,true);
+            java.util.List<String> reminders=new ArrayList<String>();
+            AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->reminders.add(a.id),()->{});
+            Alarm favor=engine.alarms().get(4);
+            AlarmClockBridge bridge=new AlarmClockBridge(hud,engine,()->false);
+            AlarmClockWindow window=(AlarmClockWindow)field(AlarmClockBridge.class,"window").get(bridge);
+            AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
+            AlarmClockAlert alert=(AlarmClockAlert)field(AlarmClockBridge.class,"alert").get(bridge);
+            AlarmSounds sounds=(AlarmSounds)field(AlarmClockBridge.class,"sounds").get(bridge);
+            java.util.List<Chime> heard=new ArrayList<Chime>();
+            field(AlarmSounds.class,"player").set(sounds,(java.util.function.Consumer<Chime>)heard::add);
+            bridge.open();
+            for(int height:new int[]{710,370}) {
+                window.setLocation(20,20,780,height);window.layout();window.gameTick();
+                Object body=field(AlarmClockWindow.class,"body").get(window);
+                ChamomiloUiV1ScrollPanel scroll=(ChamomiloUiV1ScrollPanel)field(body.getClass(),"scroll").get(body);
+                scroll.scrollTo(0,440);window.gameTick();
+                Object list=field(body.getClass(),"list").get(body);
+                java.util.List<?> cards=(java.util.List<?>)field(list.getClass(),"cards").get(list);
+                java.util.List<?> buttons=(java.util.List<?>)field(cards.get(4).getClass(),"buttons").get(cards.get(4));
+                WButton disable=(WButton)buttons.get(1);
+                int px=disable.x+disable.width/2,py=disable.y+disable.height/2;
+                bridge.remind(favor,favor.message);alert.tick(1000);
+                Alarm food=engine.alarms().get(0);bridge.remind(food,"Keep the food reminder.");
+                bridge.ring(favor); // Both an active Favor animation and a queued repeat must be canceled.
+                check(hud.getComponentAt(px,py)==disable,"HUD picks the visible Favor Disable button at height "+height);
+                check(hud.mousePressed(px,py,0,1),"HUD accepts Favor Disable press");
+                check(field(HeadsUpDisplay.class,"mouseFocusComponent").get(hud)==disable,"Favor Disable receives native mouse focus");
+                hud.mouseReleased(px,py,0);
+                check(!favor.enabled,"Full HUD click disables Favor at height "+height);
+                snapshot(messages,1f);
+                check(!labels.containsKey(favor.message)&&labels.containsKey("Keep the food reminder."),"Disabling Favor immediately clears only its visible text");
+                Alarm active=(Alarm)field(AlarmClockAlert.class,"active").get(alert);
+                check(active==null||!active.id.equals(favor.id),"Disabling Favor cancels its active animation");
+                for(Object queued:(java.util.Deque<?>)field(AlarmClockAlert.class,"pending").get(alert))
+                    check(!((Alarm)queued).id.equals(favor.id),"Disabling Favor removes queued animations");
+                heard.clear();sounds.tick(1_000_000);sounds.tick(2_000_000);
+                check(heard.equals(Arrays.asList(Chime.FOOD)),"Disabling Favor drops only its queued chime");
+                engine.tick(1_000_000,true,1,1,80,80);
+                check(!reminders.contains("favor"),"Disabled full Favor never sends reminders");
+                window.refresh();window.layout();window.gameTick();
+                cards=(java.util.List<?>)field(list.getClass(),"cards").get(list);
+                buttons=(java.util.List<?>)field(cards.get(4).getClass(),"buttons").get(cards.get(4));
+                WButton enable=(WButton)buttons.get(1);
+                px=enable.x+enable.width/2;py=enable.y+enable.height/2;
+                check(hud.getComponentAt(px,py)==enable,"HUD picks Favor Enable after rebuilding the list");
+                hud.mousePressed(px,py,0,1);hud.mouseReleased(px,py,0);
+                check(favor.enabled,"Full HUD click re-enables Favor");
+                bridge.stopEffects();
+            }
+            AlarmClockEditor editor=new AlarmClockEditor(favor,engine,()->{});
+            editor.setLocation(20,20,770,390);editor.show(hud);editor.layout();
+            bridge.remind(favor,favor.message);bridge.tick(System.currentTimeMillis());
+            Alarm disabled=favor.copy();disabled.enabled=false;
+            engine.updateSettings(disabled,"enabled",System.currentTimeMillis());
+            snapshot(messages,1f);check(!labels.containsKey(favor.message),"Settings disable clears Favor text immediately");
+            check(field(AlarmClockAlert.class,"active").get(alert)==null,"Settings disable removes active Favor animation");
+            Object editorBody=field(AlarmClockEditor.class,"body").get(editor);
+            WButton save=(WButton)field(editorBody.getClass(),"save").get(editorBody);
+            int px=save.x+save.width/2,py=save.y+save.height/2;
+            check(hud.getComponentAt(px,py)==save,"HUD picks Save in the older Favor editor");
+            hud.mousePressed(px,py,0,1);hud.mouseReleased(px,py,0);
+            check(!engine.alarms().get(4).enabled,"Native editor Save keeps Favor disabled by Settings");
+            editor.hide();hud.removeComponent(editor);
+            bridge.dispose();
+        } finally {WurmComponent.hud=previous;}
     }
     private static void verifyHudLifecycle() throws Exception {
         HeadsUpDisplay hud=WurmComponent.hud;
@@ -333,6 +414,7 @@ public final class AlarmClockLayoutProbe {
         AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
         try {
             verifyOverlayInput(messages);
+            int eventStart=eventMessages.size();
             engine.tick(1000,true,.20f,Float.NaN);
             verifySystemMessage(messages,"Eat, you have 20% food left.",new Color(1f,.94f,.60f),"food");
             messages.clear();engine.tick(2000,true,Float.NaN,.20f);
@@ -343,11 +425,18 @@ public final class AlarmClockLayoutProbe {
             verifySystemMessage(messages,"It's time to meditate.",new Color(.55f,.85f,1f),"meditation");
             messages.clear();engine.tick(6250,true,Float.NaN,Float.NaN,65,65);
             verifySystemMessage(messages,engine.alarms().get(4).message,new Color(.60f,.93f,.72f),"favor");
+            check(eventMessages.size()==eventStart+5,"Each fired reminder is duplicated in Event exactly once even with sound/animation off");
             for(Alarm alarm:engine.alarms()) {
                 alarm.name=alarm.message="Same editable message";messages.clear();mod.notifyPlayer(alarm,alarm.message);
                 snapshot(messages,1f);Alarm.ReminderColor color=alarm.reminderColor();
                 check(labelColors.get(alarm.message).equals(new Color(color.red,color.green,color.blue)),"Renaming retains reminder color: "+alarm.id);
+                check(eventColors.get(eventColors.size()-1).equals(new Color(color.red,color.green,color.blue)),"Event copy retains the reminder color: "+alarm.id);
             }
+            Alarm timer=Alarm.create(Alarm.Kind.TIMER,"Custom","A custom timer reminder.");
+            mod.notifyPlayer(timer,timer.message);
+            check(eventMessages.get(eventMessages.size()-1).equals(timer.message),"Custom timers are also copied to the shared Event");
+            int eventCount=eventMessages.size();bridge.ring(timer);
+            check(eventMessages.size()==eventCount,"Sound previews/animation do not duplicate Event text");
             verifyOverlayInput(messages);
             check(WurmComponent.hud.getComponents().contains(messages),"Text remains attached with sound and animation disabled");
             bridge.stopEffects();snapshot(messages,1f);check(labels.isEmpty(),"Disconnect clears all native system messages");
@@ -358,6 +447,7 @@ public final class AlarmClockLayoutProbe {
         preview("reminder-"+name,messages);
         check(labels.containsKey(text)&&labelSizes.get(text)>=32,"Full reminder uses the large native system font: "+name);
         check(labelColors.get(text).equals(color),"System text has the alarm color: "+name);
+        check(eventMessages.get(eventMessages.size()-1).equals(text)&&eventColors.get(eventColors.size()-1).equals(color),"Event receives the same complete text and color: "+name);
         TextFont font=(TextFont)field(AlarmClockScreenMessages.class,"font").get(messages);
         Point position=labels.get(text);
         check(position.x==(WurmComponent.SCREEN_WIDTH-font.getWidth(text))/2&&position.y==WurmComponent.SCREEN_HEIGHT/4,"Native reminder is centered at the system-message position");
@@ -435,14 +525,15 @@ public final class AlarmClockLayoutProbe {
             Object body=field(AlarmClockEditor.class,"body").get(editor);
             // Hidden values must never be parsed as settings for these monitors.
             ((ChamomiloUiV1TextField)field(body.getClass(),"delay").get(body)).setText("unused");
-            ((ChamomiloUiV1TextField)field(body.getClass(),"repeat").get(body)).setText("unused");
+            ((ChamomiloUiV1TextField)field(body.getClass(),alarmIndex==0?"repeat":"stop").get(body)).setText("unused");
             for(String language:new String[]{"en","pt-BR","de","ru"}) {
                 Messages.select(language);editor.relocalize();
                 editor.setLocation(20,20,740,385);verifyEditorBounds(editor);
                 preview(alarm.id+"-editor-"+language,editor);
             }
             click((WButton)field(body.getClass(),"save").get(body));
-            check(closed[0]==1&&engine.alarms().get(alarmIndex).threshold==20&&engine.alarms().get(alarmIndex).stopAt==5,"Food/water Save uses percentage settings and ignores hidden time fields");
+            check(closed[0]==1&&engine.alarms().get(alarmIndex).threshold==(alarmIndex==0?20:50),"Monitor Save parses only its active parameters");
+            if(alarmIndex==1)check(engine.alarms().get(1).repeatMillis==60_000,"Water editor retains minute repeats without a lower cutoff");
         }
         Messages.select("en");
     }
@@ -451,6 +542,8 @@ public final class AlarmClockLayoutProbe {
         AlarmClockEditor editor=new AlarmClockEditor(null,engine,()->{});editor.setLocation(20,20,740,385);
         Object body=field(AlarmClockEditor.class,"body").get(editor);
         ChamomiloUiV1DropDown kind=(ChamomiloUiV1DropDown)field(body.getClass(),"kind").get(body);
+        kind.selectIndex(2);
+        check(((ChamomiloUiV1TextField)field(body.getClass(),"threshold").get(body)).value().equals("50"),"New Water alarms start at the 50% threshold");
         String[] keys={"name","delay","repeat","threshold","stop","message"};
         String[] values={"Unsaved alarm","23","2","25","7","Keep my message"};
         for(int i=0;i<keys.length;i++)((ChamomiloUiV1TextField)field(body.getClass(),keys[i]).get(body)).setText(values[i]);
@@ -473,7 +566,7 @@ public final class AlarmClockLayoutProbe {
         int type=((ChamomiloUiV1DropDown)field(body.getClass(),"kind").get(body)).selectedIndex();
         for(String key:new String[]{"delay","repeat","threshold","stop"}) {
             WurmComponent wrapper=(WurmComponent)field(body.getClass(),key).get(body);
-            boolean shown=key.equals("delay")?type==0:key.equals("repeat")?type==0||type==3:type==1||type==2;
+            boolean shown=key.equals("delay")?type==0:key.equals("repeat")?type==0||type==2||type==3:key.equals("threshold")?type==1||type==2:type==1;
             WurmInputField input=(WurmInputField)field(ChamomiloUiV1TextField.class,"input").get(wrapper);
             check(controls.contains(wrapper)==shown&&input.enabled==shown,"Unused parameters are absent from drawing/picking and disabled for keyboard entry: "+key);
             if(!shown) {
@@ -484,14 +577,15 @@ public final class AlarmClockLayoutProbe {
         snapshot(editor,1f);
         check(labels.containsKey(Messages.t("delay"))==(type==0),"Wait label only appears for timers");
         check(labels.containsKey(Messages.t("repeatField"))==(type==0),"Timer repeat label only appears for timers");
-        check(labels.containsKey(Messages.t("favorRepeatField"))==(type==3),"Favor repeat label only appears for Favor");
-        check(labels.containsKey(Messages.t("thresholdField"))==(type==1||type==2),"Threshold label only appears for Food/Water");
-        check(labels.containsKey(Messages.t("stopField"))==(type==1||type==2),"Stop label only appears for Food/Water");
+        check(labels.containsKey(Messages.t("favorRepeatField"))==(type==2||type==3),"Monitor repeat label appears for Water/Favor");
+        check(labels.containsKey(Messages.t("thresholdField"))==(type==1),"Food uses its percentage threshold");
+        check(labels.containsKey(Messages.t("waterThresholdField"))==(type==2),"Water uses a strictly-below threshold");
+        check(labels.containsKey(Messages.t("stopField"))==(type==1),"Only Food has a lower cutoff");
         int column=(((FlexComponent)body).width-20)/2;
         java.util.List<String> captions=new ArrayList<String>(Arrays.asList("name","kind"));
         if(type==0)captions.addAll(Arrays.asList("delay","repeatField"));
-        else if(type==3)captions.add("favorRepeatField");else captions.addAll(Arrays.asList("thresholdField","stopField"));
-        String hint=type==0?"timerHint":type==3?"favorHint":"needsHint";
+        else if(type==3)captions.add("favorRepeatField");else if(type==2)captions.addAll(Arrays.asList("waterThresholdField","favorRepeatField"));else captions.addAll(Arrays.asList("thresholdField","stopField"));
+        String hint=type==0?"timerHint":type==3?"favorHint":type==2?"waterHint":"needsHint";
         for(boolean bold:new boolean[]{false,true}) {
             for(String key:captions)check(UiTypography.width(Messages.t(key),16,bold,UiDensity.LOW)<=column,"Active parameter caption fits narrow layout: "+Messages.language()+" "+key);
             check(UiTypography.width(Messages.t(hint),16,bold,UiDensity.LOW)<=((FlexComponent)body).width,"Type-specific explanation fits narrow layout: "+Messages.language());
@@ -545,6 +639,7 @@ public final class AlarmClockLayoutProbe {
         field(HeadsUpDisplay.class,"popups").set(hud,new ArrayList<WurmPopup>());
         field(HeadsUpDisplay.class,"dropdownPopups").set(hud,new ArrayList<WurmDropdownPopup>());
         field(HeadsUpDisplay.class,"itemPlateComponent").set(hud,allocate(WurmItemPlate.class));
+        field(HeadsUpDisplay.class,"chatManager").set(hud,allocate(ChatManagerManager.class));
         WurmComponent.SCREEN_WIDTH=1920;WurmComponent.SCREEN_HEIGHT=1080;WurmComponent.hud=hud;
         field(HeadsUpDisplay.class,"mainMenu").set(hud,new MainMenu());
         field(HeadsUpDisplay.class,"hudSettings").set(hud,new HudSettings());

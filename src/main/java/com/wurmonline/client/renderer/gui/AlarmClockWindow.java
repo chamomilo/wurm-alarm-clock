@@ -17,6 +17,7 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
     private final Consumer<Alarm> previewSound;
     private final UiScale scale = UiScale.BASE;
     private final Body body;
+    private FlexComponent titleHeader;
     private AlarmClockEditor editor;
     private ChamomiloUiV1Window confirmation;
     public AlarmClockWindow(AlarmEngine engine, BooleanSupplier saveFailed) {
@@ -25,12 +26,17 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
     public AlarmClockWindow(AlarmEngine engine, BooleanSupplier saveFailed, Consumer<Alarm> previewSound) {
         super("Alarm Clock", Messages.t("title"), Messages.language(), UiBackground.WALNUT, 5);
         this.engine = engine; this.saveFailed = saveFailed;this.previewSound=previewSound;
-        setHeaderHeight(40); setContentPadding(8);
+        titleHeader.text=ChamomiloUiV1Fonts.caption(20,true,UiDensity.HIGH);
+        setHeaderHeight(Math.max(40,titleHeader.text.getHeight()+23)); setContentPadding(8);
         body = new Body(); setContent(body);
         setInitialSize(780, 710, false, false, .5f, .5f);
         refresh();
     }
     @Override void setSize(int width, int height) { super.setSize(Math.max(720, width), Math.max(330, height)); }
+    @Override void setComponent(FlexComponent component,int region) {
+        super.setComponent(component,region);
+        if(region==NORTH)titleHeader=component;
+    }
     public void refresh() { body.refresh(); }
     public void relocalize() {
         setCaption(Messages.t("title")); setLanguage(Messages.language()); refresh();
@@ -107,6 +113,7 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         private final ChamomiloUiV1ScrollPanel scroll = new ChamomiloUiV1ScrollPanel("alarmclock.list.scroll", list, false, true);
         private ChamomiloSkinnedButton create;
         private ChoiceCheckBox sound, animation;
+        private boolean showingSaveFailure;
         Body() { super("alarmclock.body"); scroll.parent = this; scroll.setScale(scale); }
         void refresh() {
             // Named standard group: alarmclock.toolbar.
@@ -126,7 +133,8 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             sound.setLocation(x+196,y+2,92,28);animation.setLocation(x+296,y+2,140,28);
             int listWidth = Math.max(630, width-18);
             list.resize(listWidth);
-            scroll.setLocation(x, y+62, width, Math.max(40, height-90)); scroll.layout();
+            showingSaveFailure=saveFailed.getAsBoolean();
+            scroll.setLocation(x, y+42, width, Math.max(40, height-42-(showingSaveFailure?24:0))); scroll.layout();
         }
         @Override public FlexComponent getComponentAt(int mx,int my) {
             if (!contains(mx,my)) return null;
@@ -136,14 +144,15 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             if (scroll.contains(mx,my)) return scroll.getComponentAt(mx,my);
             return this;
         }
-        @Override public void gameTick() { scroll.gameTick(); }
+        @Override public void gameTick() {
+            if(showingSaveFailure!=saveFailed.getAsBoolean())componentResized();
+            scroll.gameTick();
+        }
         @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
             create.render(queue,1f);
             sound.render(queue,1f);animation.render(queue,1f);
-            paintText(queue,text,Messages.t("intro"),x,y+50,width,UiColor.TEXT);
             scroll.render(queue,1f);
-            String footer = saveFailed.getAsBoolean() ? Messages.t("saveFailed") : "Alarm Clock " + AlarmClockMod.VERSION;
-            paintText(queue,text,footer,x,y+height-8,width,saveFailed.getAsBoolean()?UiColor.DANGER:UiColor.MUTED);
+            if(saveFailed.getAsBoolean())paintText(queue,text,Messages.t("saveFailed"),x,y+height-8,width,UiColor.DANGER);
         }
     }
     private final class ListContent extends FlexComponent {
@@ -231,6 +240,7 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             else status=Float.isFinite(value)?AlarmEngine.percentage(value)+"% "+Messages.t("remaining"):Messages.t("waiting");
             paintText(queue,statusFont,status,x+width/2,y+22,width/2-12,alarm.enabled?accent:UiColor.MUTED);
             String rule=favor?Messages.t("favorAtMax")+"  |  "+Messages.t("repeat")+" "+minutes(alarm.repeatMillis)+" "+Messages.t("minutes"):
+                type.rule==AlarmType.Rule.BELOW_PERCENTAGE?Messages.t("alertBelow")+" "+alarm.threshold+"%  |  "+Messages.t("repeat")+" "+minutes(alarm.repeatMillis)+" "+Messages.t("minutes"):
                 type.has(AlarmType.Parameter.DELAY)?minutes(alarm.delayMillis)+" "+Messages.t("minutes")+"  |  "+
                 (alarm.repeatMillis==0?Messages.t("once"):Messages.t("repeat")+" "+minutes(alarm.repeatMillis)+" "+Messages.t("minutes")):
                 Messages.t("threshold")+" "+alarm.threshold+"%  |  "+Messages.t("everyPercent")+"  |  "+Messages.t("stop")+" "+alarm.stopAt+"%";

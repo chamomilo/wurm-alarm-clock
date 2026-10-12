@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.*;
 
 public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable, ModListener, SharedLanguageCoordinator.Participant {
-    public static final String VERSION = "0.2.9";
+    public static final String VERSION = "0.3.3";
     public static final FavorReadings FAVOR_READINGS = new FavorReadings();
     private static final Logger LOG = Logger.getLogger(AlarmClockMod.class.getName());
     private static volatile AlarmClockMod instance;
@@ -86,6 +86,7 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
             definitions = AlarmEngine.defaults(); saveFailed = true;
         }
         engine = new AlarmEngine(definitions, this::notifyPlayer, this::save, store.options(),store.timerDeadlines());
+        org.chamomilo.wurm.update.SharedModSettings.register("alarmclock",new AlarmModSettings(this));
     }
     @Override public void modInitialized(ModEntry<?> entry) { SharedUpdateCoordinator.modInitialized(entry); }
     @Override public String[] supportedLanguageCodes() { return new String[]{"en", "pt-BR", "de", "ru"}; }
@@ -96,6 +97,7 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
     }
     public AlarmEngine engine() { return engine; }
     public boolean saveFailed() { return saveFailed; }
+    void refreshSettingsUi() { if(bridge!=null)bridge.relocalize(); }
     public void save() {
         if (protectUnreadableSettings) { saveFailed = true; return; }
         try { store.save(engine.alarms(), Messages.language(),engine.timerDeadlines()); saveFailed = false; }

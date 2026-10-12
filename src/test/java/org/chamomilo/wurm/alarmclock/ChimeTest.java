@@ -49,4 +49,13 @@ public class ChimeTest {
         AlarmSounds sounds=new AlarmSounds(c->{throw new IllegalStateException("No sound device");});
         sounds.enqueue(Chime.PRAYER);sounds.tick(1000);sounds.clear();
     }
+    @Test public void cancellationKeepsOtherAlarmsWithTheSameChimeAndExplicitPreviews() {
+        List<Chime> heard=new ArrayList<Chime>();AlarmSounds sounds=new AlarmSounds(heard::add);
+        Alarm first=Alarm.create(Alarm.Kind.FAVOR,"First spell reminder","Cast now.");
+        Alarm second=Alarm.create(Alarm.Kind.FAVOR,"Second spell reminder","Cast later.");
+        sounds.enqueue(first);sounds.enqueue(first);sounds.enqueue(second);sounds.enqueue(Chime.FAVOR);
+        sounds.cancel(first.id);
+        sounds.tick(1000);sounds.tick(100_000);sounds.tick(200_000);
+        assertEquals(Arrays.asList(Chime.FAVOR,Chime.FAVOR),heard);
+    }
 }

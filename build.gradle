@@ -1,7 +1,7 @@
 apply plugin: 'java'
 
 group = 'org.chamomilo.wurm.alarmclock'
-version = '0.2.9'
+version = '0.3.3'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 def referencePath = findProperty('chamomiloUpdaterReference') ?: System.getenv('CHAMOMILO_UPDATER_REFERENCE') ?: 'C:/projects/updater'

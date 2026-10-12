@@ -8,7 +8,7 @@ public enum AlarmType {
         new Appearance(Chime.TIMER, Alarm.ReminderColor.GOLD, .29f,.23f,.36f,false,false), Activity.NONE),
     FOOD("food", Alarm.Kind.FOOD, "food", "Food", "Eat, you have {percent}% food left.", Rule.PERCENTAGE, 20,
         new Appearance(Chime.FOOD, Alarm.ReminderColor.GOLD, .34f,.22f,.16f,false,false), Activity.NONE),
-    WATER("water", Alarm.Kind.WATER, "water", "Water", "Drink, you have {percent}% water left.", Rule.PERCENTAGE, 20,
+    WATER("water", Alarm.Kind.WATER, "water", "Water", "Drink, you have {percent}% water left.", Rule.BELOW_PERCENTAGE, 20,
         new Appearance(Chime.WATER, Alarm.ReminderColor.GOLD, .16f,.29f,.35f,false,false), Activity.NONE),
     PRAYER("prayer", Alarm.Kind.TIMER, "prayer", "Prayer", "It's time to pray.", Rule.TIMER, 20,
         new Appearance(Chime.PRAYER, Alarm.ReminderColor.GOLD, .33f,.29f,.16f,false,false), Activity.PRAYER),
@@ -17,7 +17,7 @@ public enum AlarmType {
     FAVOR("favor", Alarm.Kind.FAVOR, "favor", "Favor", "Favor is full. It's time to cast a spell.", Rule.FULL_FAVOR, 20,
         new Appearance(Chime.FAVOR, Alarm.ReminderColor.MINT, .17f,.34f,.24f,true,true), Activity.NONE);
 
-    public enum Rule { TIMER, PERCENTAGE, FULL_FAVOR }
+    public enum Rule { TIMER, PERCENTAGE, BELOW_PERCENTAGE, FULL_FAVOR }
     public enum Activity { NONE, PRAYER, MEDITATION }
     public enum Parameter {
         DELAY("delay", "delay"), REPEAT("repeat", "repeatField"),
@@ -49,9 +49,11 @@ public enum AlarmType {
         this.builtInId=id;this.kind=kind;this.nameKey=nameKey;this.defaultName=name;this.defaultMessage=message;
         this.rule=rule;this.appearance=appearance;this.activity=activity;
         defaultDelayMillis=delayMinutes*60_000L;defaultRepeatMillis=60_000L;
-        defaultThreshold=rule==Rule.FULL_FAVOR?100:20;defaultStop=rule==Rule.FULL_FAVOR?0:5;
+        defaultThreshold=rule==Rule.FULL_FAVOR?100:rule==Rule.BELOW_PERCENTAGE?50:20;
+        defaultStop=rule==Rule.PERCENTAGE?5:0;
         Parameter[] fields=rule==Rule.TIMER?new Parameter[]{Parameter.DELAY,Parameter.REPEAT}:
-            rule==Rule.PERCENTAGE?new Parameter[]{Parameter.THRESHOLD,Parameter.STOP}:new Parameter[]{Parameter.REPEAT};
+            rule==Rule.PERCENTAGE?new Parameter[]{Parameter.THRESHOLD,Parameter.STOP}:
+            rule==Rule.BELOW_PERCENTAGE?new Parameter[]{Parameter.THRESHOLD,Parameter.REPEAT}:new Parameter[]{Parameter.REPEAT};
         parameters=Collections.unmodifiableList(Arrays.asList(fields));
     }
     public static List<AlarmType> editable() { return EDITABLE; }
@@ -70,9 +72,11 @@ public enum AlarmType {
     public List<Parameter> parameters() { return parameters; }
     public boolean has(Parameter parameter) { return parameters.contains(parameter); }
     public String captionKey(Parameter parameter) {
-        return parameter==Parameter.REPEAT&&rule==Rule.FULL_FAVOR?"favorRepeatField":parameter.captionKey;
+        if(parameter==Parameter.REPEAT&&rule!=Rule.TIMER)return "favorRepeatField";
+        if(parameter==Parameter.THRESHOLD&&rule==Rule.BELOW_PERCENTAGE)return "waterThresholdField";
+        return parameter.captionKey;
     }
-    public String hintKey() { return rule==Rule.TIMER?"timerHint":rule==Rule.PERCENTAGE?"needsHint":"favorHint"; }
+    public String hintKey() { return rule==Rule.TIMER?"timerHint":rule==Rule.PERCENTAGE?"needsHint":rule==Rule.BELOW_PERCENTAGE?"waterHint":"favorHint"; }
     public void apply(Alarm alarm, Parameter parameter, String value) {
         if(!has(parameter))return;
         switch(parameter) {
@@ -83,7 +87,9 @@ public enum AlarmType {
         }
     }
     public void validate(Alarm alarm) {
-        if(has(Parameter.THRESHOLD)&&(alarm.threshold<1||alarm.threshold>100||alarm.stopAt<0||alarm.stopAt>alarm.threshold))
+        if(has(Parameter.THRESHOLD)&&(alarm.threshold<1||alarm.threshold>100))
+            throw new IllegalArgumentException("Use a threshold from 1 to 100.");
+        if(has(Parameter.STOP)&&(alarm.stopAt<0||alarm.stopAt>alarm.threshold))
             throw new IllegalArgumentException("Use a threshold from 1 to 100 and a stop level from 0 to the threshold.");
         if(has(Parameter.DELAY)&&(alarm.delayMillis<1_000||alarm.delayMillis>MAX_DURATION))
             throw new IllegalArgumentException("Use a positive duration between one second and one year.");

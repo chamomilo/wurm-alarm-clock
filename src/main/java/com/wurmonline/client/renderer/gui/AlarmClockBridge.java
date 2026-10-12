@@ -43,13 +43,16 @@ public final class AlarmClockBridge {
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { components.add(messages); }
         showLauncher(false);
+        engine.onReminderCancelled(this::cancelReminder);
     }
     public void remind(Alarm alarm, String message) {
-        messages.show(message, alarm.reminderColor());
+        messages.show(alarm,message);
+        Alarm.ReminderColor color=alarm.reminderColor();
+        hud.textMessage(":Event",color.red*255f,color.green*255f,color.blue*255f,message);
         ring(alarm);
     }
     public void ring(Alarm alarm) {
-        if(engine.options().sound)sounds.enqueue(Chime.forAlarm(alarm));
+        if(engine.options().sound)sounds.enqueue(alarm);
         if(engine.options().animation)alert.ring(alarm);
     }
     public void tick(long now) {
@@ -65,6 +68,10 @@ public final class AlarmClockBridge {
         // The decorative overlays opt out of input through isAvailable().
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { if(visible){if(!components.contains(alert))components.add(alert);}else components.remove(alert); }
+    }
+    private void cancelReminder(Alarm alarm) {
+        messages.cancel(alarm.id);sounds.cancel(alarm.id);alert.cancel(alarm.id);
+        alertVisible=alert.tick(System.currentTimeMillis());setAlertVisible(alertVisible);
     }
     public void stopEffects() { sounds.clear();alert.clear();messages.clear();setAlertVisible(false);alertVisible=false; }
     public void showLauncher(boolean resetPosition) {
@@ -84,6 +91,7 @@ public final class AlarmClockBridge {
                 entry.getKey().setLabel(Messages.t("launcher"));
     }
     public void dispose() {
+        engine.onReminderCancelled(alarm->{});
         stopEffects();window.disposeEditor();hud.removeComponent(window);hud.removeComponent(launcher);
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { components.remove(messages); }

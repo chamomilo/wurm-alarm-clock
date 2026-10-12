@@ -29,6 +29,7 @@ public final class AlarmStore {
         language = p.getProperty("language", "en");
         options.sound=Boolean.parseBoolean(p.getProperty("sound", "true"));
         options.animation=Boolean.parseBoolean(p.getProperty("animation", "true"));
+        boolean legacyWater=!"below-threshold".equals(p.getProperty("waterReminderMode"));
         List<Alarm> alarms = new ArrayList<Alarm>();
         Map<String,Long> loadedDeadlines=new HashMap<String,Long>();
         try {
@@ -48,7 +49,11 @@ public final class AlarmStore {
                 alarm.threshold = integer(p,key+"threshold",alarm.threshold,type.has(AlarmType.Parameter.THRESHOLD));
                 alarm.stopAt = integer(p,key+"stopAt",alarm.stopAt,type.has(AlarmType.Parameter.STOP));
                 alarm.delayMillis = number(p,key+"delay",alarm.delayMillis,type.has(AlarmType.Parameter.DELAY));
-                alarm.repeatMillis = number(p,key+"repeat",alarm.repeatMillis,type.has(AlarmType.Parameter.REPEAT));
+                alarm.repeatMillis = number(p,key+"repeat",alarm.repeatMillis,type.has(AlarmType.Parameter.REPEAT)&&!(legacyWater&&alarm.kind==Alarm.Kind.WATER));
+                if(legacyWater&&alarm.kind==Alarm.Kind.WATER) {
+                    alarm.repeatMillis=type.defaultRepeatMillis;
+                    if(alarm.builtIn)alarm.threshold=type.defaultThreshold;
+                }
                 if(type.has(AlarmType.Parameter.DELAY)) {
                     long due=number(p,key+"due",0,true);
                     if(due<0)throw new IllegalArgumentException("Invalid timer deadline.");
@@ -69,6 +74,7 @@ public final class AlarmStore {
     public void save(List<Alarm> alarms, String language, Map<String,Long> deadlines) throws IOException {
         Map<String,Long> savedDeadlines=new HashMap<String,Long>();
         Properties p = new Properties(); p.setProperty("schema", "1"); p.setProperty("language", language);
+        p.setProperty("waterReminderMode","below-threshold");
         p.setProperty("sound", Boolean.toString(options.sound));p.setProperty("animation", Boolean.toString(options.animation));
         p.setProperty("count", Integer.toString(alarms.size()));
         for (int i = 0; i < alarms.size(); i++) {

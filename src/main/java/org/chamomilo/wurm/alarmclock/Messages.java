@@ -52,6 +52,9 @@ public final class Messages {
         add("delay", "Wait (minutes)", "Espera (minutos)", "Wartezeit (Minuten)", "Ожидание (минуты)");
         add("repeatField", "Repeat (minutes, 0 = once)", "Repetir (minutos, 0 = uma vez)", "Wiederholung (Minuten, 0 = einmal)", "Повтор (минуты, 0 = один раз)");
         add("thresholdField", "Threshold (%)", "Limite (%)", "Schwelle (%)", "Порог (%)");
+        add("waterThresholdField", "Alert below (%)", "Avisar abaixo de (%)", "Warnung unter (%)", "Напоминать ниже (%)");
+        add("alertBelow", "Alert below", "Avisar abaixo de", "Warnung unter", "Напоминать ниже");
+        add("waterHint", "Repeat while water is below the threshold, including at 0%. {percent} inserts the current value.", "Repetir abaixo do limite, inclusive a 0%. {percent} insere o valor atual.", "Unter der Schwelle wiederholen, auch bei 0%. {percent} setzt den aktuellen Wert ein.", "Повторять ниже порога, включая 0%. {percent} — текущее значение.");
         add("stopField", "Stop below (%)", "Parar abaixo de (%)", "Stoppen unter (%)", "Прекратить ниже (%)");
         add("message", "Screen message", "Mensagem na tela", "Bildschirmmeldung", "Сообщение на экране");
         add("timerHint", "Saving starts a new timer. Repeat 0 means one reminder.", "Salvar inicia um novo temporizador. Repetir 0 gera um único lembrete.", "Speichern startet den Timer neu. Wiederholung 0 bedeutet eine Erinnerung.", "Сохранение запускает новый отсчёт. Повтор 0 — одно напоминание.");

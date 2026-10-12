@@ -2,6 +2,7 @@ package org.chamomilo.wurm.alarmclock;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /** HUD-thread scheduler. No background actions, server commands or catch-up message bursts. */
 public final class AlarmEngine {
@@ -10,6 +11,7 @@ public final class AlarmEngine {
     private final BiConsumer<Alarm, String> notify;
     private final Runnable save;
     private final ReminderOptions options;
+    private Consumer<Alarm> cancelReminder=alarm->{};
     private float food = Float.NaN, water = Float.NaN, favor = Float.NaN, faith = Float.NaN;
     public AlarmEngine(List<Alarm> definitions, BiConsumer<Alarm, String> notify, Runnable save) {
         this(definitions,notify,save,new ReminderOptions());
@@ -28,6 +30,8 @@ public final class AlarmEngine {
         }
     }
     public ReminderOptions options() { return options; }
+    /** The current HUD removes already delivered effects when the user disables an alarm. */
+    public void onReminderCancelled(Consumer<Alarm> listener) { cancelReminder=Objects.requireNonNull(listener); }
     public void toggleSound() { options.sound=!options.sound;save.run(); }
     public void toggleAnimation() { options.animation=!options.animation;save.run(); }
     public List<Alarm> alarms() { return Collections.unmodifiableList(alarms); }
@@ -58,7 +62,7 @@ public final class AlarmEngine {
         this.favor = connected ? favor : Float.NaN;
         this.faith = connected ? faith : Float.NaN;
         if (!connected) {
-            for (Alarm alarm : alarms) if (alarm.type().rule == AlarmType.Rule.FULL_FAVOR) state(alarm).nextReminder = 0;
+            for (Alarm alarm : alarms) if (alarm.type().rule == AlarmType.Rule.FULL_FAVOR||alarm.type().rule == AlarmType.Rule.BELOW_PERCENTAGE) state(alarm).nextReminder = 0;
             return;
         }
         boolean changed = false;
@@ -70,6 +74,11 @@ public final class AlarmEngine {
                 if (now < state.nextReminder) continue;
                 notify.accept(alarm, alarm.message);
                 state.nextReminder = now + alarm.repeatMillis;
+            } else if (alarm.type().rule == AlarmType.Rule.BELOW_PERCENTAGE) {
+                if(!Float.isFinite(water)||water<0||water>1||water*100.0>=alarm.threshold) {state.nextReminder=0;continue;}
+                if(now<state.nextReminder)continue;
+                notify.accept(alarm,alarm.message.replace("{percent}",Integer.toString(percentage(water))));
+                state.nextReminder=now+alarm.repeatMillis;
             } else if (alarm.type().rule == AlarmType.Rule.PERCENTAGE) {
                 threshold(alarm, state, alarm.kind == Alarm.Kind.FOOD ? food : water);
             } else {
@@ -106,7 +115,7 @@ public final class AlarmEngine {
         food = water = favor = faith = Float.NaN;
         for (Alarm alarm : alarms) {
             state(alarm).lastPercent = 101;
-            if (alarm.type().rule == AlarmType.Rule.FULL_FAVOR) state(alarm).nextReminder = 0;
+            if (alarm.type().rule == AlarmType.Rule.FULL_FAVOR||alarm.type().rule == AlarmType.Rule.BELOW_PERCENTAGE) state(alarm).nextReminder = 0;
         }
     }
     public void restart(Alarm alarm, long now) { restartWithoutSave(alarm, now); save.run(); }
@@ -140,13 +149,16 @@ public final class AlarmEngine {
     }
     public void toggle(Alarm alarm, long now) {
         AlarmRuntimeState state=state(alarm);state.nextReminder = 0;
-        if (alarm.enabled) alarm.enabled = false;
+        if (alarm.enabled) { alarm.enabled = false; cancelReminder.accept(alarm); }
         else { alarm.enabled = true; if (alarm.type().has(AlarmType.Parameter.DELAY)) restartWithoutSave(alarm, now); else state.lastPercent = 101; }
         save.run();
     }
     public void put(Alarm edited, long now) {
         edited.validate();
         for (int i = 0; i < alarms.size(); i++) if (alarms.get(i).id.equals(edited.id)) {
+            // Settings may replace the live alarm while an older editor remains open.
+            // Monitor edits do not change the user's current enable/disable choice.
+            if(!edited.type().has(AlarmType.Parameter.DELAY))edited.enabled=alarms.get(i).enabled;
             states.put(edited.id,new AlarmRuntimeState());
             if(edited.type().has(AlarmType.Parameter.DELAY))restartWithoutSave(edited,now);
             alarms.set(i, edited); save.run(); return;
@@ -156,8 +168,22 @@ public final class AlarmEngine {
         if(edited.type().has(AlarmType.Parameter.DELAY))restartWithoutSave(edited,now);
         alarms.add(edited); save.run();
     }
+    /** Changing captions or reminder intervals keeps a running timer's deadline. */
+    public void updateSettings(Alarm edited,String field,long now) {
+        edited.validate();
+        for(int i=0;i<alarms.size();i++)if(alarms.get(i).id.equals(edited.id)) {
+            Alarm previous=alarms.get(i);AlarmRuntimeState state=state(previous);
+            if(field.equals("delay") || (field.equals("enabled")&&edited.enabled&&!previous.enabled)) {
+                if(edited.type().has(AlarmType.Parameter.DELAY))state.dueAt=now+edited.delayMillis;
+            }
+            if(field.equals("enabled")&&!edited.enabled)cancelReminder.accept(previous);
+            if(!field.equals("name")&&!field.equals("message")) {state.nextReminder=0;state.lastPercent=101;}
+            alarms.set(i,edited);save.run();return;
+        }
+        throw new IllegalArgumentException("Alarm was removed");
+    }
     public void remove(Alarm alarm) {
-        if (!alarm.builtIn && alarms.remove(alarm)) { states.remove(alarm.id);save.run(); }
+        if (!alarm.builtIn && alarms.remove(alarm)) { states.remove(alarm.id);cancelReminder.accept(alarm);save.run(); }
     }
     public static List<Alarm> defaults() { return AlarmType.defaults(); }
 }

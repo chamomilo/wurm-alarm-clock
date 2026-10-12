@@ -31,6 +31,7 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
         private final List<FlexComponent> controls=new ArrayList<FlexComponent>();
         private final Map<AlarmType.Parameter,ChamomiloUiV1TextField> parameterFields=new EnumMap<AlarmType.Parameter,ChamomiloUiV1TextField>(AlarmType.Parameter.class);
         private boolean invalid;
+        private AlarmType previousType;
         EditorBody() {
             super("alarmclock.editor.body");
             name=field("name",80); delay=field("delay",16); repeat=field("repeat",16);
@@ -52,6 +53,9 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
         void updateFields() {
             if(delay==null) return;
             AlarmType type=kind==null?AlarmType.TIMER:selectedType();
+            if(original==null&&previousType!=null&&previousType!=type&&threshold.value().equals(Integer.toString(previousType.defaultThreshold)))
+                threshold.setText(Integer.toString(type.defaultThreshold));
+            previousType=type;
             for(Map.Entry<AlarmType.Parameter,ChamomiloUiV1TextField> field:parameterFields.entrySet())field.getValue().setAvailable(type.has(field.getKey()));
             // Keep native inputs and their values, but only expose applicable controls to painting and picking.
             controls.clear();controls.add(name);if(kind!=null)controls.add(kind);

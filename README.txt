@@ -1,10 +1,10 @@
-Chamomilo Alarm Clock 0.2.8
+Chamomilo Alarm Clock 0.2.9
 https://github.com/chamomilo/wurm-alarm-clock
 
 Installation
 Download the latest alarmclock ZIP from GitHub Releases. Extract its mods folder into
 the Wurm Unlimited client folder that already has the Wurm client mod launcher.
-Restart the client. Chamomilo updater 1.4.1 and interface kit 0.4.11 are embedded;
+Restart the client. Chamomilo updater 1.4.2 and interface kit 0.4.11 are embedded;
 no separate updater installation is required.
 
 The installable ZIP contains only:
@@ -41,6 +41,8 @@ each sound. A ringing clock animates above the large native screen message for
 three seconds. Reminders use plain 36 px native system text and fade, without a
 caption plate. Text remains visible with Sound or Animation disabled. Simultaneous
 chimes are queued so they remain distinguishable.
+Reminder text and ringing animation let mouse input reach the world and controls
+behind them, including while the reminder text is empty.
 
 New alarm creates a Timer, Food, Water or Favor alarm. Edit only shows parameters
 used by the selected type: Wait / Repeat for timers, Threshold / Stop below for

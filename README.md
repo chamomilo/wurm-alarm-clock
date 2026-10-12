@@ -11,7 +11,7 @@ A Wurm Unlimited client mod for food, water, prayer, meditation and Favor remind
 ## Installation
 
 1. Install the Wurm Unlimited client mod launcher.
-2. Download `alarmclock-0.2.8.zip` from [Releases](https://github.com/chamomilo/wurm-alarm-clock/releases/latest).
+2. Download `alarmclock-0.2.9.zip` from [Releases](https://github.com/chamomilo/wurm-alarm-clock/releases/latest).
 3. Extract its `mods` folder into your Wurm Unlimited client folder and restart the client.
 
 The installable ZIP contains exactly three files:
@@ -22,7 +22,7 @@ mods/alarmclock.properties
 mods/alarmclock/alarmclock.jar
 ```
 
-Chamomilo updater **1.4.1** and Chamomilo UI **0.4.11** are embedded in the JAR. Existing alarm settings are preserved; no separate updater installation is needed. Source code, screenshots and development files stay in this repository and are excluded from the installable ZIP.
+Chamomilo updater **1.4.2** and Chamomilo UI **0.4.11** are embedded in the JAR. Existing alarm settings are preserved; no separate updater installation is needed. Source code, screenshots and development files stay in this repository and are excluded from the installable ZIP.
 
 ## Default alarms
 
@@ -43,6 +43,8 @@ Messages use plain **36 px bold system text**, centered at Wurm's native message
 ![Large mint-green Favor reminder without a caption plate](images/favor-reminder.png)
 
 Each alarm has a colored card and a distinct gentle chime. **Test chime** lets you learn its sound. A clock animates above the message when an alarm rings. **Sound** and **Animation** are independent switches; disabling either leaves reminder text visible. Simultaneous chimes are queued.
+
+Reminder text and ringing animation let mouse input reach the world and controls behind them, including while the reminder text is empty.
 
 ## Controls
 

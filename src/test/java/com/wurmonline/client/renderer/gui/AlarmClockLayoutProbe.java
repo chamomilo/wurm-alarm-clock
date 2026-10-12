@@ -312,7 +312,7 @@ public final class AlarmClockLayoutProbe {
     private static void verifyRingingOverlay() throws Exception {
         AlarmClockAlert alert=new AlarmClockAlert();Alarm meditation=AlarmEngine.defaults().get(3);
         alert.ring(meditation);check(alert.tick(System.currentTimeMillis()-500),"Ring starts overlay");
-        check(alert.getComponentAt(alert.x+150,alert.y+40)==null,"Ringing overlay lets mouse input pass through");
+        verifyOverlayInput(alert);
         preview("ringing-meditation",alert);
         check(labels.isEmpty(),"Ringing animation has no small caption plate");
         long start=field(AlarmClockAlert.class,"started").getLong(alert);
@@ -332,6 +332,7 @@ public final class AlarmClockLayoutProbe {
         field(AlarmClockMod.class,"bridge").set(mod,bridge);
         AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
         try {
+            verifyOverlayInput(messages);
             engine.tick(1000,true,.20f,Float.NaN);
             verifySystemMessage(messages,"Eat, you have 20% food left.",new Color(1f,.94f,.60f),"food");
             messages.clear();engine.tick(2000,true,Float.NaN,.20f);
@@ -347,7 +348,7 @@ public final class AlarmClockLayoutProbe {
                 snapshot(messages,1f);Alarm.ReminderColor color=alarm.reminderColor();
                 check(labelColors.get(alarm.message).equals(new Color(color.red,color.green,color.blue)),"Renaming retains reminder color: "+alarm.id);
             }
-            check(messages.getComponentAt(960,270)==null,"System text is click-through");
+            verifyOverlayInput(messages);
             check(WurmComponent.hud.getComponents().contains(messages),"Text remains attached with sound and animation disabled");
             bridge.stopEffects();snapshot(messages,1f);check(labels.isEmpty(),"Disconnect clears all native system messages");
         } finally { bridge.dispose(); }
@@ -366,6 +367,32 @@ public final class AlarmClockLayoutProbe {
         pending.get(0).prepareRender(4f,position.x,position.y);
         viewer.prepareRender(font,WurmComponent.SCREEN_WIDTH,WurmComponent.SCREEN_HEIGHT);
         snapshot(messages,1f);check(labels.isEmpty(),"Native reminder fades out after three seconds");
+    }
+    private static void verifyOverlayInput(StaticComponent overlay) throws Exception {
+        HeadsUpDisplay previous = WurmComponent.hud;
+        try {
+            HeadsUpDisplay inputHud = fixtureHud();
+            field(HeadsUpDisplay.class,"visible").setBoolean(inputHud,true);
+            int px = overlay.x + overlay.width / 2, py = overlay.y + overlay.height / 2;
+            inputHud.getComponents().add(overlay);
+            check(inputHud.getComponentAt(px,py)==null,"Decorative overlay leaves world hover available");
+            check(!inputHud.mousePressed(px,py,0,1),"Left click reaches the world without a null focus crash");
+            check(!inputHud.mousePressed(px,py,1,1),"Right click reaches the world without a null focus crash");
+            OverlayInputTarget target = new OverlayInputTarget(px-20,py-20);
+            inputHud.getComponents().add(0,target);
+            check(inputHud.getComponentAt(px,py)==target,"Hover reaches the control behind the overlay");
+            check(inputHud.mousePressed(px,py,0,1)&&target.leftPresses==1,"Native left press reaches the underlying control");
+            check(field(HeadsUpDisplay.class,"mouseFocusComponent").get(inputHud)==target,"Underlying control receives native mouse focus");
+            inputHud.getComponents().remove(overlay);inputHud.getComponents().add(overlay);
+            check(inputHud.mousePressed(px,py,1,1)&&target.rightPresses==1,"Native right press reaches the underlying control");
+        } finally { WurmComponent.hud = previous; }
+    }
+    private static final class OverlayInputTarget extends StaticComponent {
+        int leftPresses, rightPresses;
+        OverlayInputTarget(int x,int y) { super("Overlay input target",x,y,40,40); }
+        @Override protected void leftPressed(int x,int y,int clicks) { leftPresses++; }
+        @Override protected void rightPressed(int x,int y,int clicks) { rightPresses++; }
+        @Override protected void renderComponent(Queue queue,float alpha) {}
     }
     private static void verifyFavorEditor(AlarmEngine engine) throws Exception {
         AlarmClockEditor editor=new AlarmClockEditor(engine.alarms().get(4),engine,()->{});
@@ -517,6 +544,7 @@ public final class AlarmClockLayoutProbe {
         field(HeadsUpDisplay.class,"components").set(hud,new ArrayList<WurmComponent>());
         field(HeadsUpDisplay.class,"popups").set(hud,new ArrayList<WurmPopup>());
         field(HeadsUpDisplay.class,"dropdownPopups").set(hud,new ArrayList<WurmDropdownPopup>());
+        field(HeadsUpDisplay.class,"itemPlateComponent").set(hud,allocate(WurmItemPlate.class));
         WurmComponent.SCREEN_WIDTH=1920;WurmComponent.SCREEN_HEIGHT=1080;WurmComponent.hud=hud;
         field(HeadsUpDisplay.class,"mainMenu").set(hud,new MainMenu());
         field(HeadsUpDisplay.class,"hudSettings").set(hud,new HudSettings());

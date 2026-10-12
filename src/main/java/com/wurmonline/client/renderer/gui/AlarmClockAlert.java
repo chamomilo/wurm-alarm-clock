@@ -23,6 +23,8 @@ final class AlarmClockAlert extends StaticComponent {
         return active!=null;
     }
     void clear() { active=null;pending.clear(); }
+    // HUD selects bounds before getComponentAt; returning null alone crashes a press.
+    @Override boolean isAvailable() { return false; }
     @Override public StaticComponent getComponentAt(int mx,int my) { return null; }
     @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
         if(active==null)return;

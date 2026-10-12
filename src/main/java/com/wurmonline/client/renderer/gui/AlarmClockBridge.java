@@ -61,7 +61,8 @@ public final class AlarmClockBridge {
         alertVisible=visible;
     }
     private void setAlertVisible(boolean visible) {
-        // Like the SDK's free HUD tags, join only the render list; preserve native free-look and focus.
+        // Register for rendering without changing native window/menu/focus state.
+        // The decorative overlays opt out of input through isAvailable().
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { if(visible){if(!components.contains(alert))components.add(alert);}else components.remove(alert); }
     }

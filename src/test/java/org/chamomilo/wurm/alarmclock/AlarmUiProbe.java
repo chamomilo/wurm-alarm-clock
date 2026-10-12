@@ -87,6 +87,18 @@ public final class AlarmUiProbe {
         };
         hud.getDeclaredMethod("addComponent").instrument(hudState);
         hud.getDeclaredMethod("removeComponent").instrument(hudState);
+        // Bypass only the live connection/free-look getters. Keep native hit
+        // testing, focus assignment and press dispatch intact for crash regression.
+        hud.getDeclaredMethod("mousePressed").instrument(new javassist.expr.ExprEditor() {
+            @Override public void edit(javassist.expr.MethodCall call) throws CannotCompileException {
+                String owner = call.getClassName(), method = call.getMethodName();
+                if (owner.equals("com.wurmonline.client.game.World") && method.equals("getClient")
+                        || owner.equals("com.wurmonline.client.WurmClientBase") && method.equals("getEventHandler"))
+                    call.replace("{ $_ = null; }");
+                else if (owner.equals("com.wurmonline.client.WurmEventHandler") && method.equals("getIsFreeLookMode"))
+                    call.replace("{ $_ = false; }");
+            }
+        });
         // Freeze only render-time countdown text while comparing incoming alpha values.
         pool.get(gui + "AlarmClockWindow$Card").getDeclaredMethod("renderComponent").instrument(new javassist.expr.ExprEditor() {
             @Override public void edit(javassist.expr.MethodCall call) throws CannotCompileException {

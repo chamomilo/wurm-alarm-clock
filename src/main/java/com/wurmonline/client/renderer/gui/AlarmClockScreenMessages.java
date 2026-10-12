@@ -24,6 +24,8 @@ final class AlarmClockScreenMessages extends StaticComponent {
 
     void clear() { viewer = new OnScreenMessageViewer(); }
 
+    // Keep drawing, but exclude this full-screen layer from native mouse focus.
+    @Override boolean isAvailable() { return false; }
     @Override public StaticComponent getComponentAt(int mx, int my) { return null; }
 
     @Override protected void renderComponent(Queue queue, float ignoredAlpha) {

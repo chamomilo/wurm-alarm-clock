@@ -85,8 +85,10 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
     }
     static String minutes(long millis) { return AlarmType.minutes(millis); }
     static int checkboxBaseline() {
+        // Named group: alarmclock.presentation. All delivery and activity choices
+        // use 16 px HIGH captions, 28 px rows and one measured ink envelope.
         int top=Integer.MAX_VALUE,bottom=Integer.MIN_VALUE;
-        for(String key:new String[]{"sound","animation","autoRestartPrayer","autoRestartMeditation"})
+        for(String key:new String[]{"eventMessage","onScreenMessage","alarmAnimation","chime","autoRestartPrayer","autoRestartMeditation"})
             for(boolean bold:new boolean[]{false,true}) {
                 java.awt.Rectangle ink=UiTypography.ink(Messages.t(key),16,bold,UiDensity.HIGH);
                 top=Math.min(top,ink.y);bottom=Math.max(bottom,ink.y+ink.height);
@@ -112,7 +114,6 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         private final ListContent list = new ListContent();
         private final ChamomiloUiV1ScrollPanel scroll = new ChamomiloUiV1ScrollPanel("alarmclock.list.scroll", list, false, true);
         private ChamomiloSkinnedButton create;
-        private ChoiceCheckBox sound, animation;
         private boolean showingSaveFailure;
         Body() { super("alarmclock.body"); scroll.parent = this; scroll.setScale(scale); }
         void refresh() {
@@ -121,16 +122,11 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
                     new String[]{Messages.t("new")}, new int[]{180}, 32, scale);
             create = action(Messages.t("new"), 180, group, () -> edit(null));
             create.parent = this;
-            int baseline=checkboxBaseline();
-            sound=new ChoiceCheckBox(Messages.t("sound"),Messages.t("soundHint"),baseline,()->engine.options().sound,engine::toggleSound);
-            animation=new ChoiceCheckBox(Messages.t("animation"),Messages.t("animationHint"),baseline,()->engine.options().animation,engine::toggleAnimation);
-            sound.parent=animation.parent=this;
             list.rebuild(); componentResized();
         }
         @Override void componentResized() {
             if (scroll == null || create == null) return;
             create.setLocation(x, y, 180, 32);
-            sound.setLocation(x+196,y+2,92,28);animation.setLocation(x+296,y+2,140,28);
             int listWidth = Math.max(630, width-18);
             list.resize(listWidth);
             showingSaveFailure=saveFailed.getAsBoolean();
@@ -139,8 +135,6 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         @Override public FlexComponent getComponentAt(int mx,int my) {
             if (!contains(mx,my)) return null;
             if (create.contains(mx,my)) return create;
-            if (sound.contains(mx,my)) return sound;
-            if (animation.contains(mx,my)) return animation;
             if (scroll.contains(mx,my)) return scroll.getComponentAt(mx,my);
             return this;
         }
@@ -150,7 +144,6 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         }
         @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
             create.render(queue,1f);
-            sound.render(queue,1f);animation.render(queue,1f);
             scroll.render(queue,1f);
             if(saveFailed.getAsBoolean())paintText(queue,text,Messages.t("saveFailed"),x,y+height-8,width,UiColor.DANGER);
         }
@@ -164,13 +157,13 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             int[] widths = {120,120,120,120,120,120};
             // Named compact group: alarmclock.row-actions; includes all rows and enable/disable variants.
             UiButtonLayout[] group = UiButtonLayout.compactGroup(variants,widths,scale,true);
-            // Named group: alarmclock.checkboxes; all four controls share one ink envelope.
+            // Delivery and activity choices share the alarmclock.presentation ink envelope.
             int baseline=checkboxBaseline();
             for (Alarm alarm : engine.alarms()) { Card card = new Card(alarm,group,baseline); card.parent = this; cards.add(card); }
             resize(width);
         }
-        void resize(int width) { sizeFlags = 0; setSize(width,Math.max(1,cards.size()*110)); sizeFlags = FIXED_WIDTH | FIXED_HEIGHT; componentResized(); }
-        @Override void componentResized() { if (cards!=null) for (int i=0;i<cards.size();i++) cards.get(i).setLocation(x,y+i*110,width,110); }
+        void resize(int width) { sizeFlags = 0; setSize(width,Math.max(1,cards.size()*218)); sizeFlags = FIXED_WIDTH | FIXED_HEIGHT; componentResized(); }
+        @Override void componentResized() { if (cards!=null) for (int i=0;i<cards.size();i++) cards.get(i).setLocation(x,y+i*218,width,218); }
         @Override public FlexComponent getComponentAt(int mx,int my) {
             if (!contains(mx,my)) return null;
             for(Card card:cards) if(card.contains(mx,my)) return card.getComponentAt(mx,my);
@@ -184,13 +177,10 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         private final List<ChamomiloUiV1Button> buttons = new ArrayList<ChamomiloUiV1Button>();
         private final ChamomiloUiV1Canvas canvas = new ChamomiloUiV1Canvas(this);
         private final ChoiceCheckBox autoRestart;
-        private final UiColor accent;
-        private final UiColor plate;
+        private final AlarmClockPresentation presentation;
         Card(Alarm alarm, UiButtonLayout[] group, int baseline) {
             super("alarmclock.row."+alarm.id); this.alarm=alarm;type=alarm.type();
-            Alarm.ReminderColor color=alarm.reminderColor();
-            accent=type.appearance.coloredCaption?new UiColor(color.red,color.green,color.blue):UiColor.TEXT;
-            plate=new UiColor(type.appearance.plateRed,type.appearance.plateGreen,type.appearance.plateBlue);
+            presentation=new AlarmClockPresentation(alarm,delivery->engine.toggleDelivery(alarm,delivery),color->engine.setColor(alarm,color));presentation.parent=this;
             add("edit",group[0],()->edit(alarm));
             int state=alarm.enabled?1:2;
             add(alarm.enabled?"disable":"enable",group[state],()->{engine.toggle(alarm,System.currentTimeMillis());refresh();});
@@ -207,13 +197,15 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             button.applyCompactLayout(layout,scale); button.parent=this; buttons.add(button);
         }
         @Override void componentResized() {
-            if(buttons!=null) for(int i=0;i<buttons.size();i++) buttons.get(i).setLocation(x+12+i*128,y+76,120,24);
+            if(buttons!=null) for(int i=0;i<buttons.size();i++) buttons.get(i).setLocation(x+12+i*128,y+184,120,24);
             if(autoRestart!=null) autoRestart.setLocation(x+width/2,y+45,width/2-12,28);
+            if(presentation!=null)presentation.setLocation(x+12,y+76,width-24,102);
         }
         @Override public FlexComponent getComponentAt(int mx,int my) {
             if(!contains(mx,my)) return null;
             for(ChamomiloUiV1Button button:buttons) if(button.contains(mx,my)) return button;
             if(autoRestart!=null&&autoRestart.contains(mx,my)) return autoRestart;
+            if(presentation.contains(mx,my))return presentation.getComponentAt(mx,my);
             return this;
         }
         @Override public void pick(PickData data,int mx,int my) {
@@ -221,6 +213,8 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         }
         @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
             canvas.begin(queue); UiPainter.background(canvas,UiBackground.LEATHER,1f,x,y,width,height-6);
+            Alarm.ReminderColor color=alarm.reminderColor();UiColor accent=new UiColor(color.red,color.green,color.blue);
+            UiColor plate=new UiColor(color.red*.28f,color.green*.28f,color.blue*.28f);
             // Same fixed material translucency as Keybinder's constructor zones; independent of HUD alpha/hover.
             canvas.fill(plate,.78f,x,y,width,height-6);
             boolean favor=type.rule==AlarmType.Rule.FULL_FAVOR;
@@ -248,38 +242,7 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             paintText(queue,bodyFont,alarm.message,x+12,y+63,autoRestart==null?width-24:width/2-24,UiColor.MUTED);
             for(ChamomiloUiV1Button button:buttons) button.render(queue,1f);
             if(autoRestart!=null) autoRestart.render(queue,1f);
-        }
-    }
-    /** Native completed-click checkbox using the same kit painter and glyph as Keybinder. */
-    private final class ChoiceCheckBox extends WButton implements ButtonListener {
-        private final BooleanSupplier checked;
-        private final Runnable toggle;
-        private final ChamomiloUiV1Canvas canvas = new ChamomiloUiV1Canvas(this);
-        private final UiButtonMotion motion = new UiButtonMotion();
-        private final int baseline;
-        private boolean armed;
-        ChoiceCheckBox(String caption, String hint, int baseline, BooleanSupplier checked, Runnable toggle) {
-            super(caption);this.checked=checked;this.toggle=toggle;setButtonListener(this);
-            text=ChamomiloUiV1Fonts.caption(16,false,UiDensity.HIGH);
-            textBold=ChamomiloUiV1Fonts.caption(16,true,UiDensity.HIGH);
-            this.baseline=baseline;
-            setHoverString(label+"\n"+hint);
-            sizeFlags=0; setSize(300,28); sizeFlags=FIXED_HEIGHT;
-        }
-        @Override public void buttonPressed(WButton button) { armed=isEnabled(); if(armed) motion.pointerPressed(System.nanoTime()); }
-        @Override public void buttonClicked(WButton button) {
-            boolean fire=armed&&isEnabled(); armed=false;
-            if(fire) toggle.run();
-        }
-        @Override protected void mouseDragged(int mx,int my) { armed=false; super.mouseDragged(mx,my); }
-        @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
-            motion.update(isEnabled(),hovered,isCloseHovered,System.nanoTime());
-            canvas.begin(queue); int top=y+(height-18)/2;
-            UiPainter.button(canvas,motion.brightness(),motion.depth(),motion.hover(),scale,1f,x,top,18,18);
-            int offset=Math.round(motion.depth()*scale.factor);
-            UiColor color=UiPainter.buttonCaptionColor(isEnabled(),motion.hover());
-            if(checked.getAsBoolean()) UiIcon.CHECK.paint(canvas,color,1f,x+3+offset,top+3+offset,12);
-            paintText(queue,hovered?textBold:text,label,x+26,y+baseline,width-26,color);
+            presentation.render(queue,1f);
         }
     }
 }

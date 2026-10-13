@@ -7,6 +7,33 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmStoreTest {
+    @Test public void perAlarmDeliveriesAndCustomColorsSurviveReloadWithoutGlobalGates() throws Exception {
+        Path path=Files.createTempDirectory("alarm-delivery-").resolve("alarms.properties");
+        AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();
+        Alarm custom=Alarm.create(Alarm.Kind.TIMER,"Custom","A custom reminder");alarms.add(custom);
+        for(int i=0;i<alarms.size();i++) {
+            Alarm alarm=alarms.get(i);int mask=i+1;
+            for(Alarm.Delivery d:Alarm.Delivery.values())alarm.setDelivery(d,(mask&(1<<d.ordinal()))!=0);
+            alarm.setColor(String.format(Locale.ROOT,"#%06X",0x123400+i));
+        }
+        custom.chime=true;custom.animation=true;
+        store.options().sound=false;store.options().animation=false;store.save(alarms,"ru");
+        List<Alarm> restored=new AlarmStore(path).load();
+        for(int i=0;i<alarms.size();i++) {
+            for(Alarm.Delivery d:Alarm.Delivery.values())assertEquals(alarms.get(i).delivers(d),restored.get(i).delivers(d));
+            assertEquals(alarms.get(i).colorHex(),restored.get(i).colorHex());
+        }
+        assertTrue("Explicit per-alarm chime overrides old global false",restored.get(alarms.size()-1).chime);
+        assertTrue("Explicit per-alarm animation overrides old global false",restored.get(alarms.size()-1).animation);
+    }
+    @Test public void oldGlobalChoicesAreImportedOnceAndEveryAlarmCanOverrideThem() throws Exception {
+        Path path=legacyFixture();Properties legacy=properties(path);legacy.setProperty("sound","false");legacy.setProperty("animation","false");write(path,legacy);
+        AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();
+        for(Alarm alarm:alarms) {assertTrue(alarm.eventMessage);assertTrue(alarm.onScreenMessage);assertFalse(alarm.chime);assertFalse(alarm.animation);}
+        Alarm water=alarms.get(1);water.chime=true;water.animation=true;water.setColor("#C57AE0");store.save(alarms,"en");
+        Alarm restored=new AlarmStore(path).load().get(1);
+        assertTrue(restored.chime);assertTrue(restored.animation);assertEquals("#C57AE0",restored.colorHex());
+    }
     @Test public void legacyBuiltInWaterAdoptsFiftyAndMinuteRepeatsOnlyOnce() throws Exception {
         Path path=legacyFixture();Properties legacy=properties(path);
         legacy.setProperty("alarm.1.enabled","false");legacy.setProperty("alarm.1.threshold","20");

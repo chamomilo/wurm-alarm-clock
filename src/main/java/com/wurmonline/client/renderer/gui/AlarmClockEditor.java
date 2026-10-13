@@ -17,16 +17,17 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
         super("alarmclock.editor",Messages.t(alarm==null?"new":"edit"),Messages.language(),UiBackground.WALNUT,5);
         this.original=alarm;this.engine=engine;this.closed=closed;
         setHeaderHeight(40);setContentPadding(10);
-        body=new EditorBody();setContent(body);setInitialSize(770,390,false,false,.5f,.5f);
+        body=new EditorBody();setContent(body);setInitialSize(770,520,false,false,.5f,.5f);
         onClose(closed);
     }
-    @Override void setSize(int width,int height) { super.setSize(Math.max(740,width),Math.max(385,height)); }
+    @Override void setSize(int width,int height) { super.setSize(Math.max(740,width),Math.max(510,height)); }
     public void relocalize() {
         setCaption(Messages.t(original==null?"new":"edit"));setLanguage(Messages.language());body.relocalize();
     }
     private final class EditorBody extends FlexComponent {
         final ChamomiloUiV1TextField name,delay,repeat,threshold,stop,message;
         final ChamomiloUiV1DropDown kind;
+        final AlarmClockPresentation presentation;
         private ChamomiloSkinnedButton save,cancel;
         private final List<FlexComponent> controls=new ArrayList<FlexComponent>();
         private final Map<AlarmType.Parameter,ChamomiloUiV1TextField> parameterFields=new EnumMap<AlarmType.Parameter,ChamomiloUiV1TextField>(AlarmType.Parameter.class);
@@ -41,6 +42,8 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
             kind=new ChamomiloUiV1DropDown("alarmclock.kind",330,typeOptions(),i->updateFields());
             kind.parent=this;
             Alarm value=original==null?Alarm.create(Alarm.Kind.TIMER,"",AlarmType.TIMER.defaultMessage):original;
+            Alarm draft=value.copy();
+            presentation=new AlarmClockPresentation(draft,delivery->draft.setDelivery(delivery,!draft.delivers(delivery)),draft::setColor);presentation.parent=this;
             name.setText(value.name);message.setText(value.message);
             for(AlarmType.Parameter parameter:AlarmType.Parameter.values())parameterFields.get(parameter).setText(parameter.value(value));
             kind.selectIndex(index(value.kind));kind.setAvailable(original==null||!original.builtIn);
@@ -61,11 +64,13 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
             controls.clear();controls.add(name);if(kind!=null)controls.add(kind);
             for(AlarmType.Parameter parameter:type.parameters())controls.add(parameterFields.get(parameter));
             controls.add(message);
+            if(presentation!=null)controls.add(presentation);
             if(save!=null) {controls.add(save);controls.add(cancel);}
             componentResized();
         }
         void relocalize() {
             int selected=kind.selectedIndex();kind.setOptions(typeOptions());kind.selectIndex(selected);
+            if(presentation!=null)presentation.relocalize();
             ChamomiloSkinnedButton.CaptionGroup group=new ChamomiloSkinnedButton.CaptionGroup(
                 new String[]{Messages.t("save"),Messages.t("cancel")},150,32,UiScale.BASE);
             if(save!=null) {controls.remove(save);controls.remove(cancel);}
@@ -77,6 +82,7 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
             try {
                 Alarm result=original==null?Alarm.create(selectedKind(),name.value().trim(),message.value().trim()):original.copy();
                 result.kind=selectedKind();result.name=name.value().trim();result.message=message.value().trim();
+                presentation.applyTo(result);
                 for(AlarmType.Parameter parameter:selectedType().parameters())selectedType().apply(result,parameter,parameterFields.get(parameter).value());
                 result.validate();engine.put(result,System.currentTimeMillis());closed.run();
             } catch(IllegalArgumentException failure) {
@@ -93,6 +99,7 @@ public final class AlarmClockEditor extends ChamomiloUiV1Window {
             int position=0;
             for(AlarmType.Parameter parameter:selectedType().parameters())parameterFields.get(parameter).setLocation(x+position++*(column+20),y+98,column,32);
             message.setLocation(x,y+172,width,32);
+            presentation.setLocation(x,y+264,width,102);
             save.setLocation(x,y+height-40,150,32);cancel.setLocation(x+158,y+height-40,150,32);
         }
         @Override public FlexComponent getComponentAt(int mx,int my) {

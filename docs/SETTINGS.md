@@ -2,9 +2,13 @@
 
 Water has **Alert below (%)** and **Repeat (minutes)**, defaulting to 50% and one minute. There is no **Stop below** parameter: reminders continue at 0% and stop on refilling to the threshold. Older built-in Water settings adopt the new defaults once without re-enabling disabled alarms.
 
-All reminder text is mirrored into the normal Wurm **Event** channel in its screen-message color. This also applies to custom timers and to reminders with sound or animation disabled.
+Each alarm has **Event message**, **On-screen message**, **Alarm clock animation**, and **Chime** checkboxes. They independently control the Event copy, large screen text, animated clock and sound. These choices are available on each card, in the alarm editor and in the shared settings editor; all are saved per alarm.
 
-To stop full-Favor reminders, turn off **Enabled** in the Favor group. This cancels Favor's visible message, active/queued animation and queued chimes immediately. It is saved across restarts and reconnects, and saving an already-open alarm editor keeps Favor disabled. **Reminder sound** and **Reminder animation** switch only their respective effects.
+Select a palette color or enter **#RRGGBB** on the card or in the alarm editor. Shared Settings also accepts **R,G,B**. The chosen color is used for Event text, large text and the animated clock, and as a darker tint on the card background. Delivery/color changes preserve running timer deadlines and reminder cadence.
+
+Older global Sound/Animation choices are imported as each alarm's Chime/Animation defaults only when the per-alarm choices are absent. Individual choices take precedence on later loads; no global switch can suppress a selected effect.
+
+To stop full-Favor reminders, turn off **Enabled** in the Favor group. This cancels Favor's visible message, active/queued animation and queued chimes immediately. It is saved across restarts and reconnects, and saving an already-open alarm editor keeps Favor disabled. Unchecking an individual visual/sound effect immediately removes only that effect for that alarm.
 
 Settings are available from the Settings button in the shared Mods Registry. Each parameter has hover help. Valid edits are saved automatically and applied during play where supported; startup-only changes are identified in the help. The shared language selector controls the settings window.
 

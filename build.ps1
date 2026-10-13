@@ -12,6 +12,8 @@ $env:Path = "$JavaHome\bin;$env:Path"
 if ($JavaFxJar) { $env:WURM_JFX = $JavaFxJar }
 $referenceRoot = (Resolve-Path -LiteralPath $UpdaterReference).Path
 $arguments = @('--offline','--no-daemon',"-PchamomiloUpdaterReference=$referenceRoot",'clean','build','dist')
+$arguments += "-PupdaterBuildDirectory=$(Join-Path $PSScriptRoot 'build\updater-reference')"
+$arguments += "-PupdaterDistributionDirectory=$(Join-Path $PSScriptRoot 'build\updater-reference\dist')"
 if ($ClientLibDir) { $arguments += "-PwurmClientLibDir=$ClientLibDir" }
 if ($JavaFxJar) { $arguments += "-PwurmJavaFxJar=$JavaFxJar" }
 Push-Location $PSScriptRoot

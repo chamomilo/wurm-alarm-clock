@@ -24,6 +24,8 @@ public class ClientHooksTest {
         verify(pool,"com.wurmonline.client.comm.ServerConnectionListenerClass","textMessage","(Ljava/lang/String;FFFLjava/lang/String;B)V","serverMessage");
         verify(pool,"com.wurmonline.client.comm.ServerConnectionListenerClass","textMessage","(Ljava/lang/String;Ljava/util/List;B)V","serverMessage");
         verify(pool,"com.wurmonline.client.console.WurmConsole","handleDevInput","(Ljava/lang/String;[Ljava/lang/String;)Z","command");
+        verify(pool,"com.wurmonline.client.renderer.gui.Renderer","execute","(Ljava/lang/Object;)V","isReminderOverlay","com.wurmonline.client.renderer.gui.AlarmClockBridge");
+        assertTrue(pool.get("com.wurmonline.client.renderer.gui.Renderer").toBytecode().length>0);
         // Emit the instrumented listener as well: the hooks access its private World field.
         assertTrue(pool.get("com.wurmonline.client.comm.ServerConnectionListenerClass").toBytecode().length>0);
         assertTrue(pool.get("com.wurmonline.client.game.SkillLogicSet").toBytecode().length>0);

@@ -7,6 +7,22 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmModSettingsTest {
+    @Test public void settingsApplyEveryDeliveryAndColorWithoutMovingTimerDeadlines() throws Exception {
+        Fixture fixture=new Fixture();fixture.engine.restart(fixture.engine.alarms().get(2),1000);
+        long due=fixture.engine.dueAt(fixture.engine.alarms().get(2));
+        for(Alarm.Delivery delivery:Alarm.Delivery.values()) {
+            fixture.settings.change("prayer/"+delivery.key,"false");
+            assertFalse(fixture.engine.alarms().get(2).delivers(delivery));
+            assertTrue(fixture.engine.alarms().get(1).delivers(delivery));
+            assertEquals(due,fixture.engine.dueAt(fixture.engine.alarms().get(2)));
+        }
+        fixture.settings.change("prayer/color","18,52,86");
+        assertEquals("#123456",fixture.settings.value("prayer/color"));
+        fixture.settings.change("water/color","#c17aff");assertEquals("#C17AFF",fixture.settings.value("water/color"));
+        Alarm restored=new AlarmStore(fixture.path).load().get(2);
+        for(Alarm.Delivery d:Alarm.Delivery.values())assertFalse(restored.delivers(d));
+        assertEquals("#123456",restored.colorHex());assertEquals(due,fixture.engine.dueAt(fixture.engine.alarms().get(2)));
+    }
     @Test public void waterSettingsExposeThresholdAndRepeatsWithoutALowerCutoff() throws Exception {
         Fixture fixture=new Fixture();Set<String> keys=new HashSet<String>();
         fixture.settings.settings().forEach(spec->keys.add(spec.key));

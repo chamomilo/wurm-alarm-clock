@@ -21,7 +21,7 @@ public final class AlarmSounds {
     private void enqueue(String alarmId,Chime chime) {
         for(PendingSound queued:pending)
             if(Objects.equals(queued.alarmId,alarmId)&&queued.chime==chime)return;
-        if(pending.size()<8)pending.addLast(new PendingSound(alarmId,chime));
+        pending.addLast(new PendingSound(alarmId,chime));
     }
     public void cancel(String alarmId) { pending.removeIf(queued->alarmId.equals(queued.alarmId)); }
     public void tick(long now) {

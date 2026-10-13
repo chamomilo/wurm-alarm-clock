@@ -12,6 +12,7 @@ public final class AlarmEngine {
     private final Runnable save;
     private final ReminderOptions options;
     private Consumer<Alarm> cancelReminder=alarm->{};
+    private Consumer<Alarm> presentationChanged=alarm->{};
     private float food = Float.NaN, water = Float.NaN, favor = Float.NaN, faith = Float.NaN;
     public AlarmEngine(List<Alarm> definitions, BiConsumer<Alarm, String> notify, Runnable save) {
         this(definitions,notify,save,new ReminderOptions());
@@ -32,6 +33,11 @@ public final class AlarmEngine {
     public ReminderOptions options() { return options; }
     /** The current HUD removes already delivered effects when the user disables an alarm. */
     public void onReminderCancelled(Consumer<Alarm> listener) { cancelReminder=Objects.requireNonNull(listener); }
+    public void onPresentationChanged(Consumer<Alarm> listener) { presentationChanged=Objects.requireNonNull(listener); }
+    public void toggleDelivery(Alarm alarm,Alarm.Delivery delivery) {
+        alarm.setDelivery(delivery,!alarm.delivers(delivery));presentationChanged.accept(alarm);save.run();
+    }
+    public void setColor(Alarm alarm,String color) { alarm.setColor(color);presentationChanged.accept(alarm);save.run(); }
     public void toggleSound() { options.sound=!options.sound;save.run(); }
     public void toggleAnimation() { options.animation=!options.animation;save.run(); }
     public List<Alarm> alarms() { return Collections.unmodifiableList(alarms); }
@@ -161,7 +167,7 @@ public final class AlarmEngine {
             if(!edited.type().has(AlarmType.Parameter.DELAY))edited.enabled=alarms.get(i).enabled;
             states.put(edited.id,new AlarmRuntimeState());
             if(edited.type().has(AlarmType.Parameter.DELAY))restartWithoutSave(edited,now);
-            alarms.set(i, edited); save.run(); return;
+            alarms.set(i, edited); presentationChanged.accept(edited);save.run(); return;
         }
         if (alarms.size() >= 100) throw new IllegalArgumentException("At most 100 alarms can be saved.");
         states.put(edited.id,new AlarmRuntimeState());
@@ -177,8 +183,10 @@ public final class AlarmEngine {
                 if(edited.type().has(AlarmType.Parameter.DELAY))state.dueAt=now+edited.delayMillis;
             }
             if(field.equals("enabled")&&!edited.enabled)cancelReminder.accept(previous);
-            if(!field.equals("name")&&!field.equals("message")) {state.nextReminder=0;state.lastPercent=101;}
-            alarms.set(i,edited);save.run();return;
+            boolean presentation=field.equals("color");
+            for(Alarm.Delivery delivery:Alarm.Delivery.values())presentation|=field.equals(delivery.key);
+            if(!field.equals("name")&&!field.equals("message")&&!presentation) {state.nextReminder=0;state.lastPercent=101;}
+            alarms.set(i,edited);if(presentation)presentationChanged.accept(edited);save.run();return;
         }
         throw new IllegalArgumentException("Alarm was removed");
     }

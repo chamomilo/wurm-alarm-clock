@@ -43,6 +43,11 @@ public final class AlarmStore {
                         p.getProperty(key + "name"), p.getProperty(key + "message"));
                 alarm.enabled = Boolean.parseBoolean(p.getProperty(key + "enabled", "true"));
                 alarm.builtIn = AlarmType.builtIn(alarm.id)!=null;
+                alarm.eventMessage=Boolean.parseBoolean(p.getProperty(key+"eventMessage","true"));
+                alarm.onScreenMessage=Boolean.parseBoolean(p.getProperty(key+"onScreenMessage","true"));
+                alarm.animation=Boolean.parseBoolean(p.getProperty(key+"alarmAnimation",Boolean.toString(options.animation)));
+                alarm.chime=Boolean.parseBoolean(p.getProperty(key+"chime",Boolean.toString(options.sound)));
+                if(p.containsKey(key+"color"))alarm.setColor(p.getProperty(key+"color"));
                 AlarmType type=alarm.type();
                 alarm.autoRestartAfterPrayer = Boolean.parseBoolean(p.getProperty(key + "autoRestartAfterPrayer", Boolean.toString(alarm.isPrayer())));
                 alarm.autoRestartAfterMeditation = Boolean.parseBoolean(p.getProperty(key + "autoRestartAfterMeditation", Boolean.toString(alarm.isMeditation())));
@@ -63,7 +68,9 @@ public final class AlarmStore {
                 if (!ids.add(alarm.id)) throw new IllegalArgumentException("Duplicate alarm ID");
                 alarms.add(alarm);
             }
-            for (Alarm standard : AlarmEngine.defaults()) if (!ids.contains(standard.id)) alarms.add(standard);
+            for (Alarm standard : AlarmEngine.defaults()) if (!ids.contains(standard.id)) {
+                standard.chime=options.sound;standard.animation=options.animation;alarms.add(standard);
+            }
         } catch (RuntimeException invalid) { throw new IOException("Invalid alarm settings: " + path, invalid); }
         timerDeadlines.putAll(loadedDeadlines);
         return alarms;
@@ -82,6 +89,8 @@ public final class AlarmStore {
             p.setProperty(key + "id", a.id); p.setProperty(key + "kind", a.kind.name());
             p.setProperty(key + "name", a.name); p.setProperty(key + "message", a.message);
             p.setProperty(key + "enabled", Boolean.toString(a.enabled));
+            for(Alarm.Delivery delivery:Alarm.Delivery.values())p.setProperty(key+delivery.key,Boolean.toString(a.delivers(delivery)));
+            p.setProperty(key+"color",a.colorHex());
             p.setProperty(key + "autoRestartAfterPrayer", Boolean.toString(a.autoRestartAfterPrayer));
             p.setProperty(key + "autoRestartAfterMeditation", Boolean.toString(a.autoRestartAfterMeditation));
             p.setProperty(key + "threshold", Integer.toString(a.threshold)); p.setProperty(key + "stopAt", Integer.toString(a.stopAt));

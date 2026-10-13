@@ -19,13 +19,13 @@ public final class AlarmClockBridge {
     private final AlarmClockScreenMessages messages=new AlarmClockScreenMessages();
     private final AlarmSounds sounds;
     private final AlarmEngine engine;
-    private boolean alertVisible, soundWasEnabled;
+    private boolean alertVisible;
     public AlarmClockBridge(HeadsUpDisplay hud, AlarmClockMod mod) throws ReflectiveOperationException {
         this(hud, mod.engine(), mod::saveFailed);
     }
     AlarmClockBridge(HeadsUpDisplay hud, AlarmEngine engine, BooleanSupplier saveFailed) throws ReflectiveOperationException {
         this.hud = hud;
-        this.engine = engine;soundWasEnabled=engine.options().sound;
+        this.engine = engine;
         sounds=new AlarmSounds(chime->AlarmSounds.play(hud,chime));
         window = new AlarmClockWindow(engine, saveFailed, alarm->sounds.enqueue(Chime.forAlarm(alarm)));
         launcher = new AlarmClockLauncher(this::open, new org.chamomilo.wurm.ui.v1.UiScale(1f));
@@ -44,24 +44,35 @@ public final class AlarmClockBridge {
         synchronized(components) { components.add(messages); }
         showLauncher(false);
         engine.onReminderCancelled(this::cancelReminder);
+        engine.onPresentationChanged(this::syncPresentation);
+    }
+    /** Only the render hook bypasses isAvailable; native picking continues to skip these layers. */
+    public static boolean isReminderOverlay(WurmComponent component) {
+        return component instanceof AlarmClockScreenMessages || component instanceof AlarmClockAlert;
     }
     public void remind(Alarm alarm, String message) {
-        messages.show(alarm,message);
-        Alarm.ReminderColor color=alarm.reminderColor();
-        hud.textMessage(":Event",color.red*255f,color.green*255f,color.blue*255f,message);
+        if(alarm.onScreenMessage)messages.show(alarm,message);
+        if(alarm.eventMessage) {
+            Alarm.ReminderColor color=alarm.reminderColor();
+            hud.textMessage(":Event",color.red*255f,color.green*255f,color.blue*255f,message);
+        }
         ring(alarm);
     }
     public void ring(Alarm alarm) {
-        if(engine.options().sound)sounds.enqueue(alarm);
-        if(engine.options().animation)alert.ring(alarm);
+        if(alarm.chime)sounds.enqueue(alarm);
+        if(alarm.animation)alert.ring(alarm);
     }
     public void tick(long now) {
-        if(soundWasEnabled&&!engine.options().sound)sounds.clear();
-        soundWasEnabled=engine.options().sound;sounds.tick(now);
-        if(!engine.options().animation)alert.clear();
+        sounds.tick(now);
         boolean visible=alert.tick(now);
         if(visible!=alertVisible)setAlertVisible(visible);
         alertVisible=visible;
+    }
+    private void syncPresentation(Alarm alarm) {
+        if(!alarm.onScreenMessage)messages.cancel(alarm.id);
+        if(!alarm.chime)sounds.cancel(alarm.id);
+        if(!alarm.animation)alert.cancel(alarm.id);
+        alertVisible=alert.tick(System.currentTimeMillis());setAlertVisible(alertVisible);
     }
     private void setAlertVisible(boolean visible) {
         // Register for rendering without changing native window/menu/focus state.
@@ -92,6 +103,7 @@ public final class AlarmClockBridge {
     }
     public void dispose() {
         engine.onReminderCancelled(alarm->{});
+        engine.onPresentationChanged(alarm->{});
         stopEffects();window.disposeEditor();hud.removeComponent(window);hud.removeComponent(launcher);
         java.util.List<WurmComponent> components=hud.getComponents();
         synchronized(components) { components.remove(messages); }

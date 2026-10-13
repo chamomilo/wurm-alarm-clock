@@ -5,10 +5,18 @@ import java.util.UUID;
 /** Saved alarm settings. Scheduling and sampling state belong to AlarmEngine. */
 public final class Alarm {
     public enum Kind { FOOD, WATER, TIMER, FAVOR }
-    public enum ReminderColor {
-        GOLD(1f, .94f, .60f), LIGHT_BLUE(.55f, .85f, 1f), MINT(.60f, .93f, .72f);
+    public enum Delivery {
+        EVENT_MESSAGE("eventMessage"), ON_SCREEN_MESSAGE("onScreenMessage"), ANIMATION("alarmAnimation"), CHIME("chime");
+        public final String key;
+        Delivery(String key) { this.key=key; }
+    }
+    public static final class ReminderColor {
+        public static final ReminderColor GOLD=new ReminderColor(1f,.94f,.60f),
+            LIGHT_BLUE=new ReminderColor(.55f,.85f,1f), MINT=new ReminderColor(.60f,.93f,.72f);
         public final float red, green, blue;
         ReminderColor(float red, float green, float blue) { this.red=red; this.green=green; this.blue=blue; }
+        public int rgb() { return Math.round(red*255)<<16 | Math.round(green*255)<<8 | Math.round(blue*255); }
+        public static ReminderColor fromRgb(int rgb) { return new ReminderColor((rgb>>16&255)/255f,(rgb>>8&255)/255f,(rgb&255)/255f); }
     }
     public final String id;
     public Kind kind;
@@ -16,6 +24,9 @@ public final class Alarm {
     public String message;
     public boolean enabled = true;
     public boolean builtIn;
+    public boolean eventMessage=true, onScreenMessage=true, animation=true, chime=true;
+    /** Null retains the type's original default tint. */
+    public Integer colorRgb;
     public boolean autoRestartAfterPrayer;
     public boolean autoRestartAfterMeditation;
     public int threshold;
@@ -38,6 +49,7 @@ public final class Alarm {
     public Alarm copy() {
         Alarm copy = new Alarm(id, kind, name, message);
         copy.enabled = enabled; copy.builtIn = builtIn;
+        copy.eventMessage=eventMessage;copy.onScreenMessage=onScreenMessage;copy.animation=animation;copy.chime=chime;copy.colorRgb=colorRgb;
         copy.autoRestartAfterPrayer = autoRestartAfterPrayer;
         copy.autoRestartAfterMeditation = autoRestartAfterMeditation;
         copy.threshold = threshold; copy.stopAt = stopAt;
@@ -49,12 +61,25 @@ public final class Alarm {
     public boolean isMeditation() { return type().activity==AlarmType.Activity.MEDITATION; }
     public boolean autoRestart() { return isPrayer() ? autoRestartAfterPrayer : isMeditation() && autoRestartAfterMeditation; }
     public ReminderColor reminderColor() {
-        return type().appearance.reminderColor;
+        return colorRgb==null?type().appearance.reminderColor:ReminderColor.fromRgb(colorRgb);
+    }
+    public String colorHex() { return String.format(java.util.Locale.ROOT,"#%06X",reminderColor().rgb()); }
+    public void setColor(String value) {
+        String clean=value.trim();
+        if(!clean.matches("#[0-9a-fA-F]{6}"))throw new IllegalArgumentException("Use #RRGGBB.");
+        colorRgb=Integer.parseInt(clean.substring(1),16);
+    }
+    public boolean delivers(Delivery delivery) {
+        switch(delivery) {case EVENT_MESSAGE:return eventMessage;case ON_SCREEN_MESSAGE:return onScreenMessage;case ANIMATION:return animation;default:return chime;}
+    }
+    public void setDelivery(Delivery delivery,boolean enabled) {
+        switch(delivery) {case EVENT_MESSAGE:eventMessage=enabled;break;case ON_SCREEN_MESSAGE:onScreenMessage=enabled;break;case ANIMATION:animation=enabled;break;default:chime=enabled;}
     }
     public void validate() {
         if (id == null || id.isEmpty() || kind == null || name == null || name.trim().isEmpty()
                 || name.length() > 80 || message == null || message.trim().isEmpty() || message.length() > 180)
             throw new IllegalArgumentException("Name and message are required (80 / 180 characters maximum).");
         type().validate(this);
+        if(colorRgb!=null&&(colorRgb<0||colorRgb>0xFFFFFF))throw new IllegalArgumentException("Invalid reminder color.");
     }
 }

@@ -35,6 +35,19 @@ public final class AlarmUiProbe {
                 new CtClass[]{CtClass.intType,CtClass.booleanType,pool.get("org.chamomilo.wurm.ui.v1.UiDensity")})
                 .setBody("{ return " + gui + "AlarmClockLayoutProbe.captionFont($1,$2,$3); }");
         CtClass renderer = pool.get(gui + "Renderer");
+        pool.get("com.wurmonline.client.debug.Debugs").getClassInitializer().setBody("{}");
+        AlarmClockMod.installReminderRendering(pool);
+        renderer.getDeclaredMethod("execute").instrument(new javassist.expr.ExprEditor() {
+            @Override public void edit(javassist.expr.MethodCall call) throws CannotCompileException {
+                String owner=call.getClassName(),method=call.getMethodName();
+                // Omit only live game/debug startup. Retain the real component loop and its render gate.
+                if(owner.equals("com.wurmonline.client.game.PlayerObj")&&method.equals("isUsingBinoculars")
+                    ||owner.equals("com.wurmonline.client.WurmEventHandler")&&method.equals("getIsFreeLookMode"))call.replace("{ $_ = false; }");
+                else if(owner.equals("com.wurmonline.client.game.World")&&(method.equals("getPlayer")||method.equals("getClient"))
+                    ||owner.equals("com.wurmonline.client.WurmClientBase")&&method.equals("getEventHandler"))call.replace("{ $_ = null; }");
+                else if(owner.equals("com.wurmonline.client.debug.Debugs"))call.replace(method.equals("startAccumulatorThread")?"{ $_ = null; }":"{}");
+            }
+        });
         if (renderer.getClassInitializer() != null) renderer.getClassInitializer().setBody("{}");
         for (CtMethod method : renderer.getDeclaredMethods("texturedQuadAlphaBlend"))
             if (method.getParameterTypes().length == 14)

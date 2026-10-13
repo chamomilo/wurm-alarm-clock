@@ -6,6 +6,9 @@ import com.wurmonline.client.settings.SavePosManager;
 import com.wurmonline.client.settings.WindowPosition;
 import org.chamomilo.wurm.alarmclock.*;
 import org.chamomilo.wurm.ui.v1.*;
+import org.chamomilo.wurm.update.SharedModSettings;
+import org.chamomilo.wurm.update.ModSetting;
+import org.chamomilo.wurm.update.UpdatePreferences;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.*;
@@ -36,6 +39,8 @@ public final class AlarmClockLayoutProbe {
     public static long previewTime() { return previewTime; }
     public static void main(String[] args) throws Exception {
         output=Paths.get(args[0]);Files.createDirectories(output);
+        Path user=output.resolve("settings-fixture/user");Files.createDirectories(user);
+        System.setProperty("user.home",user.toAbsolutePath().toString());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         fixtureHud();
         AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->{},()->{});
@@ -47,7 +52,7 @@ public final class AlarmClockLayoutProbe {
         verifyFavorHudToggle();
         verifyLauncher();
         verifyHudLifecycle();
-        verifyActivityCompletionCallbacks();verifyNotificationColors();
+        verifyActivityCompletionCallbacks();verifyNotificationColors();verifyDeliveryCombinations();verifyNativeReminderRendering();
         verifyRingingOverlay();
         verifyFavorEditor(engine);
         verifyNeedsEditors();verifyEditorTypeSwitching();
@@ -57,7 +62,7 @@ public final class AlarmClockLayoutProbe {
         }
         int[] closed={0};
         AlarmClockEditor editor=new AlarmClockEditor(null,engine,()->closed[0]++);
-        editor.setLocation(20,20,770,390);
+        editor.setLocation(20,20,770,520);
         Object body=field(AlarmClockEditor.class,"body").get(editor);
         ChamomiloUiV1TextField name=(ChamomiloUiV1TextField)field(body.getClass(),"name").get(body);
         ChamomiloUiV1TextField message=(ChamomiloUiV1TextField)field(body.getClass(),"message").get(body);
@@ -70,7 +75,7 @@ public final class AlarmClockLayoutProbe {
             Messages.select(language);window.relocalize();editor.relocalize();
             check(name.value().equals("Custom prayer reminder")&&message.value().equals("It's time to pray.")&&delay.value().equals("20"),"Language switch preserves unsaved fields");
             preview("alarms-"+language,window);preview("editor-"+language,editor);verifyToolbar(window);verifyAutoRestartChoiceBounds(window);verifyEditorBounds(editor);
-            window.setLocation(20,20,720,370);window.gameTick();verifyAutoRestartChoiceBounds(window);
+            window.setLocation(20,20,720,370);window.gameTick();verifyAutoRestartChoiceBounds(window);verifyPresentationBounds(window);
             window.setLocation(20,20,780,710);window.gameTick();
         }
         Messages.select("en");editor.relocalize();
@@ -80,7 +85,36 @@ public final class AlarmClockLayoutProbe {
         check(engine.alarms().get(engine.alarms().size()-1).name.equals("Custom prayer reminder"),"Created alarm values retained");
         check(AlarmClockEditor.duration("0",true)==0&&AlarmClockEditor.duration("1,5",false)==90000,"Localized numeric entry");
         verifyHookContracts();
+        verifySharedSettings();
         graphics.dispose();System.out.println("ALARM_UI_OK: "+previews+" production previews; native menu/launcher opening, close/maximize, HUD visibility/recovery, saved positions, input, scrolling, grouped fonts, fixed alpha and localization");
+    }
+    private static void verifySharedSettings() throws Exception {
+        UpdatePreferences.shared().setForcedLanguage("en");Messages.select("en");
+        AlarmClockMod mod=new AlarmClockMod();mod.init();
+        SharedModSettings.Provider provider=SharedModSettings.provider("alarmclock");
+        check(provider!=null,"Mod init registers Alarm Clock with the embedded settings registry");
+        HeadsUpDisplay hud=fixtureHud();
+        ChamomiloUpdateSettingsWindow settings=new ChamomiloUpdateSettingsWindow(hud,"alarmclock","Alarm Clock",provider);
+        settings.show(hud);settings.setLocation(20,20,780,620);
+        preview("settings-en",settings);
+        java.util.List<?> rows=(java.util.List<?>)field(ChamomiloUpdateSettingsWindow.class,"rows").get(settings);
+        check(rows.size()==provider.settings().size(),"The common editor contains every alarm setting");
+        for(Object row:rows) {
+            ModSetting spec=(ModSetting)field(row.getClass(),"spec").get(row);
+            if(spec.key.equals("water/threshold")) {
+                ChamomiloUiV1TextField input=(ChamomiloUiV1TextField)field(row.getClass(),"field").get(row);
+                input.handleInput("invalid");check(provider.value(spec.key).equals("50"),"Invalid native settings input preserves Water's threshold");
+                input.handleInput("45");check(provider.value(spec.key).equals("45"),"Common settings input updates the actual Water monitor");
+            }
+            if(spec.key.equals("prayer/chime")) {
+                ChamomiloUiV1DropDown input=(ChamomiloUiV1DropDown)field(row.getClass(),"choice").get(row);
+                input.selectIndex(0);check(provider.value(spec.key).equals("false"),"Common settings can disable the Prayer chime");
+                input.selectIndex(1);check(provider.value(spec.key).equals("true"),"Common settings can restore the Prayer chime");
+            }
+        }
+        AlarmClockMod restored=new AlarmClockMod();restored.init();
+        check(restored.engine().alarms().get(1).threshold==45&&restored.engine().alarms().get(2).chime,"Changes through the common editor survive reload");
+        settings.disposeHud();
     }
     private static void verifyToolbar(AlarmClockWindow window) throws Exception {
         snapshot(window,1f);
@@ -94,18 +128,7 @@ public final class AlarmClockLayoutProbe {
             check(UiTypography.width(b.getLabel(),b.captionFontPixels(),bold,UiDensity.HIGH)<=b.width-8,"Toolbar caption clears sides");
             check(b.captionBaseline()+ink.y>=3&&b.captionBaseline()+ink.y+ink.height<=b.height-3,"Toolbar glyph ink clears top/bottom");
         }
-        int baseline=-1;
-        for(String key:new String[]{"sound","animation"}) {
-            WButton choice=(WButton)field(body.getClass(),key).get(body);
-            int current=field(choice.getClass(),"baseline").getInt(choice);
-            if(baseline>=0)check(current==baseline,"Presentation checkbox group shares baseline");baseline=current;
-            for(boolean bold:new boolean[]{false,true}) {
-                Rectangle ink=UiTypography.ink(choice.getLabel(),16,bold,UiDensity.HIGH);
-                check(UiTypography.width(choice.getLabel(),16,bold,UiDensity.HIGH)<=choice.width-26,"Sound/animation captions fit "+Messages.language());
-                check(current+ink.y>=2&&current+ink.y+ink.height<=choice.height-2,"Sound/animation ink fits");
-            }
-            check(choice.x+choice.width<=window.x+window.width,"Presentation choices fit inside window");
-        }
+        verifyPresentationBounds(window);
     }
     private static void verifyActions(AlarmClockWindow window,AlarmEngine engine) throws Exception {
         Object body=field(AlarmClockWindow.class,"body").get(window);
@@ -145,10 +168,95 @@ public final class AlarmClockLayoutProbe {
         window.refresh();cards=(java.util.List<?>)field(list.getClass(),"cards").get(list);
         buttons=(java.util.List<?>)field(cards.get(4).getClass(),"buttons").get(cards.get(4));
         click((WButton)buttons.get(1));check(favor.enabled,"Favor can be re-enabled from its own card");
-        WButton sound=(WButton)field(body.getClass(),"sound").get(body),animation=(WButton)field(body.getClass(),"animation").get(body);
-        click(sound);check(!engine.options().sound&&engine.options().animation,"Sound option toggles independently");click(sound);
-        click(animation);check(!engine.options().animation&&engine.options().sound,"Animation option toggles independently");click(animation);
         verifyAutoRestartChoiceBounds(window);
+    }
+    private static void verifyPresentationBounds(WurmComponent root) throws Exception {
+        for(WurmComponent node:tree(root))if(node instanceof AlarmClockPresentation) {
+            AlarmClockPresentation p=(AlarmClockPresentation)node;
+            for(ChoiceCheckBox choice:p.choices) {
+                int baseline=field(ChoiceCheckBox.class,"baseline").getInt(choice);
+                for(boolean bold:new boolean[]{false,true}) {
+                    Rectangle ink=UiTypography.ink(choice.getLabel(),16,bold,UiDensity.HIGH);
+                    check(UiTypography.width(choice.getLabel(),16,bold,UiDensity.HIGH)<=choice.width-26,"Delivery caption fits: "+Messages.language()+" "+choice.getLabel());
+                    check(baseline+ink.y>=2&&baseline+ink.y+ink.height<=choice.height-2,"Delivery caption ink clears edges");
+                }
+                check(choice.x>=p.x&&choice.y>=p.y&&choice.x+choice.width<=p.x+p.width&&choice.y+choice.height<=p.y+p.height,"Delivery checkbox stays inside its block");
+            }
+            check(p.palette.x+p.palette.width<=p.color.x&&p.color.x+148<=p.x+p.width,"Palette, RGB field and color swatch fit without overlap");
+            for(String key:new String[]{"gold","lightBlue","mint","pink","orange","lavender","white","red","customColor"})for(boolean bold:new boolean[]{false,true})
+                check(UiTypography.width(Messages.t(key),16,bold,UiDensity.LOW)<=p.palette.width-36,"Color choice clears dropdown arrow: "+Messages.language()+" "+key);
+        }
+    }
+    private static void verifyDeliveryCombinations() throws Exception {
+        AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->{},()->{});
+        AlarmClockBridge bridge=new AlarmClockBridge(WurmComponent.hud,engine,()->false);
+        AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
+        AlarmClockAlert alert=(AlarmClockAlert)field(AlarmClockBridge.class,"alert").get(bridge);
+        AlarmSounds sounds=(AlarmSounds)field(AlarmClockBridge.class,"sounds").get(bridge);
+        java.util.List<Chime> heard=new ArrayList<Chime>();field(AlarmSounds.class,"player").set(sounds,(java.util.function.Consumer<Chime>)heard::add);
+        Alarm custom=Alarm.create(Alarm.Kind.TIMER,"Custom","Custom reminder");engine.put(custom,1000);
+        try {
+            for(Alarm alarm:engine.alarms())for(int mask=0;mask<16;mask++) {
+                bridge.stopEffects();heard.clear();alarm.setColor("#C17AFF");
+                for(Alarm.Delivery delivery:Alarm.Delivery.values())alarm.setDelivery(delivery,(mask&(1<<delivery.ordinal()))!=0);
+                int events=eventMessages.size();bridge.remind(alarm,alarm.message);bridge.tick(System.currentTimeMillis());snapshot(messages,1f);
+                check(eventMessages.size()==events+(alarm.eventMessage?1:0),"Independent Event switch: "+alarm.id+" / "+mask);
+                check(labels.containsKey(alarm.message)==alarm.onScreenMessage,"Independent large-text switch: "+alarm.id+" / "+mask);
+                check((field(AlarmClockAlert.class,"active").get(alert)!=null)==alarm.animation,"Independent animation switch: "+alarm.id+" / "+mask);
+                check(heard.size()==(alarm.chime?1:0),"Independent chime switch: "+alarm.id+" / "+mask);
+                Color expected=new Color(0xC17AFF);
+                if(alarm.onScreenMessage)check(labelColors.get(alarm.message).equals(expected),"Screen uses custom RGB");
+                if(alarm.eventMessage)check(eventColors.get(eventColors.size()-1).equals(expected),"Event uses custom RGB");
+                if(alarm.animation)check(((Alarm)field(AlarmClockAlert.class,"active").get(alert)).colorHex().equals("#C17AFF"),"Clock uses custom RGB");
+            }
+            Alarm water=engine.alarms().get(1);for(Alarm.Delivery d:Alarm.Delivery.values())water.setDelivery(d,true);
+            bridge.stopEffects();bridge.remind(water,water.message);bridge.tick(System.currentTimeMillis());
+            engine.toggleDelivery(water,Alarm.Delivery.ON_SCREEN_MESSAGE);snapshot(messages,1f);
+            check(!labels.containsKey(water.message)&&field(AlarmClockAlert.class,"active").get(alert)!=null,"Unchecking screen text cancels only its delivered text");
+            engine.toggleDelivery(water,Alarm.Delivery.ANIMATION);
+            check(field(AlarmClockAlert.class,"active").get(alert)==null,"Unchecking animation cancels its active clock");
+            bridge.stopEffects();for(Alarm.Delivery d:Alarm.Delivery.values())water.setDelivery(d,true);
+            bridge.remind(water,water.message);engine.toggleDelivery(water,Alarm.Delivery.CHIME);heard.clear();sounds.tick(Long.MAX_VALUE);
+            check(heard.isEmpty(),"Unchecking Chime cancels its queued sound");
+            AlarmClockWindow window=(AlarmClockWindow)field(AlarmClockBridge.class,"window").get(bridge);
+            window.refresh();window.setLocation(20,20,780,710);window.layout();
+            Object body=field(AlarmClockWindow.class,"body").get(window),list=field(body.getClass(),"list").get(body);
+            Object card=((java.util.List<?>)field(list.getClass(),"cards").get(list)).get(1);
+            AlarmClockPresentation presentation=(AlarmClockPresentation)field(card.getClass(),"presentation").get(card);
+            boolean before=water.eventMessage;click(presentation.choices[0]);check(water.eventMessage!=before,"Card checkbox commits its own alarm choice");
+            presentation.palette.selectIndex(3);check(water.colorHex().equals("#FFABCC"),"Palette changes the selected alarm tint");
+            presentation.color.handleInput("#123456");check(water.colorHex().equals("#123456"),"RGB input commits a custom color");
+            BufferedImage first=snapshot((WurmComponent)card,1f);engine.setColor(water,"#E05080");
+            check(!Arrays.equals(pixels(first),pixels(snapshot((WurmComponent)card,1f))),"Chosen color changes the card background");
+            AlarmClockEditor editor=new AlarmClockEditor(water,engine,()->{});editor.setLocation(20,20,770,520);
+            Object draftBody=field(AlarmClockEditor.class,"body").get(editor);
+            AlarmClockPresentation draft=(AlarmClockPresentation)field(draftBody.getClass(),"presentation").get(draftBody);
+            click(draft.choices[1]);draft.color.handleInput("#65A321");boolean selected=!water.onScreenMessage;
+            for(String language:new String[]{"pt-BR","de","ru","en"}) {Messages.select(language);editor.relocalize();verifyPresentationBounds(editor);}
+            click((WButton)field(draftBody.getClass(),"save").get(draftBody));
+            check(engine.alarms().get(1).onScreenMessage==selected&&engine.alarms().get(1).colorHex().equals("#65A321"),"Editor preserves and saves delivery/color drafts through language switches");
+        } finally {bridge.dispose();Messages.select("en");}
+    }
+    private static void verifyNativeReminderRendering() throws Exception {
+        HeadsUpDisplay hud=WurmComponent.hud;
+        AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->{},()->{});
+        AlarmClockBridge bridge=new AlarmClockBridge(hud,engine,()->false);
+        try {
+            Alarm water=engine.alarms().get(1);water.chime=false;bridge.remind(water,"WATER RENDER REGRESSION");bridge.tick(System.currentTimeMillis());
+            Renderer renderer=(Renderer)allocate(Renderer.class);
+            field(Renderer.class,"hud").set(renderer,hud);
+            StaticComponent frame=new StaticComponent("Native HUD frame",0,0,WurmComponent.SCREEN_WIDTH,WurmComponent.SCREEN_HEIGHT) {
+                @Override protected void renderComponent(Queue queue,float alpha) { renderer.execute(queue); }
+            };
+            BufferedImage first=snapshot(frame,1f);
+            check(labels.containsKey("WATER RENDER REGRESSION"),"Actual Wurm Renderer.execute draws the click-through Water text with the list closed");
+            AlarmClockAlert alert=(AlarmClockAlert)field(AlarmClockBridge.class,"alert").get(bridge);
+            long started=field(AlarmClockAlert.class,"started").getLong(alert);previewTime=started+300;
+            BufferedImage second=snapshot(frame,1f);previewTime=started+500;
+            check(!Arrays.equals(pixels(second),pixels(snapshot(frame,1f))),"Actual Wurm renderer draws moving clock frames");
+            check(!alert.isAvailable(),"Animation remains unavailable to native picking");verifyOverlayInput(alert);
+            ImageIO.write(first,"png",output.resolve("water-native-hud.png").toFile());previews++;
+        } finally {bridge.dispose();}
     }
     private static void verifyScroll(AlarmClockWindow window,AlarmEngine engine) throws Exception {
         for(int i=0;i<8;i++)engine.put(Alarm.create(Alarm.Kind.TIMER,"Custom timer "+(i+1),"Reminder "+(i+1)),System.currentTimeMillis());
@@ -188,7 +296,7 @@ public final class AlarmClockLayoutProbe {
                 window.setLocation(20,20,780,height);window.layout();window.gameTick();
                 Object body=field(AlarmClockWindow.class,"body").get(window);
                 ChamomiloUiV1ScrollPanel scroll=(ChamomiloUiV1ScrollPanel)field(body.getClass(),"scroll").get(body);
-                scroll.scrollTo(0,440);window.gameTick();
+                scroll.scrollTo(0,4*218);window.gameTick();
                 Object list=field(body.getClass(),"list").get(body);
                 java.util.List<?> cards=(java.util.List<?>)field(list.getClass(),"cards").get(list);
                 java.util.List<?> buttons=(java.util.List<?>)field(cards.get(4).getClass(),"buttons").get(cards.get(4));
@@ -223,7 +331,7 @@ public final class AlarmClockLayoutProbe {
                 bridge.stopEffects();
             }
             AlarmClockEditor editor=new AlarmClockEditor(favor,engine,()->{});
-            editor.setLocation(20,20,770,390);editor.show(hud);editor.layout();
+            editor.setLocation(20,20,770,520);editor.show(hud);editor.layout();
             bridge.remind(favor,favor.message);bridge.tick(System.currentTimeMillis());
             Alarm disabled=favor.copy();disabled.enabled=false;
             engine.updateSettings(disabled,"enabled",System.currentTimeMillis());
@@ -253,8 +361,8 @@ public final class AlarmClockLayoutProbe {
         long ringing=System.currentTimeMillis();bridge.ring(engine.alarms().get(3));bridge.tick(ringing);
         check(hud.getComponents().contains(alert)&&!hud.isComponentEnabled(window),"Ringing overlay works with the list closed");
         check(hud.mainMenu.getMenuSet().size()==1&&hud.hudSettings.getMenuSet().size()==1,"Overlay creates no menu or window registration");
-        engine.options().animation=false;bridge.tick(ringing+1);
-        check(!hud.getComponents().contains(alert),"Animation option removes active overlay");engine.options().animation=true;
+        engine.toggleDelivery(engine.alarms().get(3),Alarm.Delivery.ANIMATION);bridge.tick(ringing+1);
+        check(!hud.getComponents().contains(alert),"Animation option removes active overlay");engine.toggleDelivery(engine.alarms().get(3),Alarm.Delivery.ANIMATION);
         bridge.ring(engine.alarms().get(2));bridge.tick(ringing+2);bridge.stopEffects();
         check(!hud.getComponents().contains(alert),"Stopping effects removes free HUD overlay");
         WButton menu=hud.mainMenu.getMenuSet().iterator().next().getKey();
@@ -409,6 +517,7 @@ public final class AlarmClockLayoutProbe {
         Map<String,Long> deadlines=new HashMap<String,Long>();deadlines.put("prayer",5000L);deadlines.put("meditation",6000L);
         ReminderOptions options=new ReminderOptions();options.sound=false;options.animation=false;
         AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),mod::notifyPlayer,()->{},options,deadlines);
+        for(Alarm alarm:engine.alarms()){alarm.chime=false;alarm.animation=false;}
         AlarmClockBridge bridge=new AlarmClockBridge(WurmComponent.hud,engine,()->false);
         field(AlarmClockMod.class,"bridge").set(mod,bridge);
         AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
@@ -486,7 +595,7 @@ public final class AlarmClockLayoutProbe {
     }
     private static void verifyFavorEditor(AlarmEngine engine) throws Exception {
         AlarmClockEditor editor=new AlarmClockEditor(engine.alarms().get(4),engine,()->{});
-        editor.setLocation(20,20,770,390);
+        editor.setLocation(20,20,770,520);
         Object body=field(AlarmClockEditor.class,"body").get(editor);
         ChamomiloUiV1DropDown kind=(ChamomiloUiV1DropDown)field(body.getClass(),"kind").get(body);
         check(kind.selectedIndex()==3,"Favor retains its type in the editor");
@@ -521,14 +630,14 @@ public final class AlarmClockLayoutProbe {
         for(int alarmIndex:new int[]{0,1}) {
             int[] closed={0};Alarm alarm=engine.alarms().get(alarmIndex);
             AlarmClockEditor editor=new AlarmClockEditor(alarm,engine,()->closed[0]++);
-            editor.setLocation(20,20,770,390);
+            editor.setLocation(20,20,770,520);
             Object body=field(AlarmClockEditor.class,"body").get(editor);
             // Hidden values must never be parsed as settings for these monitors.
             ((ChamomiloUiV1TextField)field(body.getClass(),"delay").get(body)).setText("unused");
             ((ChamomiloUiV1TextField)field(body.getClass(),alarmIndex==0?"repeat":"stop").get(body)).setText("unused");
             for(String language:new String[]{"en","pt-BR","de","ru"}) {
                 Messages.select(language);editor.relocalize();
-                editor.setLocation(20,20,740,385);verifyEditorBounds(editor);
+                editor.setLocation(20,20,740,510);verifyEditorBounds(editor);
                 preview(alarm.id+"-editor-"+language,editor);
             }
             click((WButton)field(body.getClass(),"save").get(body));
@@ -539,7 +648,7 @@ public final class AlarmClockLayoutProbe {
     }
     private static void verifyEditorTypeSwitching() throws Exception {
         AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->{},()->{});
-        AlarmClockEditor editor=new AlarmClockEditor(null,engine,()->{});editor.setLocation(20,20,740,385);
+        AlarmClockEditor editor=new AlarmClockEditor(null,engine,()->{});editor.setLocation(20,20,740,510);
         Object body=field(AlarmClockEditor.class,"body").get(editor);
         ChamomiloUiV1DropDown kind=(ChamomiloUiV1DropDown)field(body.getClass(),"kind").get(body);
         kind.selectIndex(2);
@@ -554,6 +663,7 @@ public final class AlarmClockLayoutProbe {
         Messages.select("en");
     }
     private static void verifyEditorBounds(AlarmClockEditor editor) throws Exception {
+        verifyPresentationBounds(editor);
         Object body=field(AlarmClockEditor.class,"body").get(editor);
         java.util.List<?> controls=(java.util.List<?>)field(body.getClass(),"controls").get(body);
         for(Object control:controls) {

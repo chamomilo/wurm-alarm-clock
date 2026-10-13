@@ -14,7 +14,7 @@ final class AlarmClockAlert extends StaticComponent {
     AlarmClockAlert() { super("Alarm Clock ringing");setSize(300,100); }
     void ring(Alarm alarm) {
         for(Alarm queued:pending)if(queued.id.equals(alarm.id))return;
-        if(pending.size()<8)pending.addLast(alarm.copy());
+        pending.addLast(alarm.copy());
     }
     boolean tick(long now) {
         if(active!=null&&now-started>=3000)active=null;

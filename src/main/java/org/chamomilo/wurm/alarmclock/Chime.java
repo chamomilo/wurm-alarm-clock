@@ -8,7 +8,8 @@ import java.nio.ByteOrder;
 public enum Chime {
     FOOD(new int[]{72,76},new double[]{0,.34},.95),
     WATER(new int[]{79,76,72},new double[]{0,.18,.36},.80),
-    PRAYER(new int[]{48,55,60},new double[]{0,.07,.14},1.80),
+    // Keep the fifth/octave motif in the midrange, with separate soft strikes.
+    PRAYER(new int[]{64,71,76},new double[]{0,.22,.44},1.50,.36),
     MEDITATION(new int[]{81,84,88,84},new double[]{0,.30,.60,.90},.90),
     FAVOR(new int[]{76,79,76,79},new double[]{0,.12,.65,.77},.95),
     TIMER(new int[]{74},new double[]{0},1.10);
@@ -16,8 +17,12 @@ public enum Chime {
     private final int[] notes;
     private final double[] starts;
     private final double decayLength;
+    private final double peakAmplitude;
     private byte[] wave;
-    Chime(int[] notes,double[] starts,double decayLength) { this.notes=notes;this.starts=starts;this.decayLength=decayLength; }
+    Chime(int[] notes,double[] starts,double decayLength) { this(notes,starts,decayLength,.26); }
+    Chime(int[] notes,double[] starts,double decayLength,double peakAmplitude) {
+        this.notes=notes;this.starts=starts;this.decayLength=decayLength;this.peakAmplitude=peakAmplitude;
+    }
     public static Chime forAlarm(Alarm alarm) {
         return alarm.type().appearance.chime;
     }
@@ -47,7 +52,7 @@ public enum Chime {
         out.putInt(0x46464952).putInt(36+count*2).putInt(0x45564157).putInt(0x20746d66).putInt(16);
         out.putShort((short)1).putShort((short)1).putInt(SAMPLE_RATE).putInt(SAMPLE_RATE*2).putShort((short)2).putShort((short)16);
         out.putInt(0x61746164).putInt(count*2);
-        for(double sample:samples)out.putShort((short)Math.round(sample/peak*.26*32767));
+        for(double sample:samples)out.putShort((short)Math.round(sample/peak*peakAmplitude*32767));
         return out.array();
     }
 }

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.*;
 
 public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable, ModListener, SharedLanguageCoordinator.Participant {
-    public static final String VERSION = "0.3.3";
+    public static final String VERSION = "0.3.6";
     public static final FavorReadings FAVOR_READINGS = new FavorReadings();
     private static final Logger LOG = Logger.getLogger(AlarmClockMod.class.getName());
     private static volatile AlarmClockMod instance;
@@ -42,6 +42,7 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
             hud.getMethod("init", "(II)V").insertAfter("org.chamomilo.wurm.alarmclock.AlarmClockMod.onHudReady(this);");
             hud.getMethod("gameTick", "()V").insertAfter("org.chamomilo.wurm.alarmclock.AlarmClockMod.onHudTick(this);");
         });
+        install("reminder rendering", () -> installReminderRendering(HookManager.getInstance().getClassPool()));
         install("player readings", () -> {
             CtClass player = HookManager.getInstance().getClassPool().getCtClass("com.wurmonline.client.game.PlayerObj");
             player.getMethod("setHunger", "(FB)V").insertAfter("org.chamomilo.wurm.alarmclock.AlarmClockMod.foodUpdated(this);");
@@ -71,6 +72,17 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
         install("console", () -> HookManager.getInstance().getClassPool().getCtClass("com.wurmonline.client.console.WurmConsole")
             .getMethod("handleDevInput", "(Ljava/lang/String;[Ljava/lang/String;)Z")
             .insertBefore("if (org.chamomilo.wurm.alarmclock.AlarmClockMod.command($1)) return true;"));
+    }
+    public static void installReminderRendering(ClassPool pool) throws Exception {
+        // Wurm uses isAvailable for rendering as well as hit testing. These decorations
+        // must render while remaining unavailable to mouse focus and native presses.
+        pool.getCtClass("com.wurmonline.client.renderer.gui.Renderer").getDeclaredMethod("execute")
+            .instrument(new javassist.expr.ExprEditor() {
+                @Override public void edit(javassist.expr.MethodCall call) throws javassist.CannotCompileException {
+                    if(call.getClassName().equals("com.wurmonline.client.renderer.gui.WurmComponent")&&call.getMethodName().equals("isAvailable"))
+                        call.replace("{ $_ = com.wurmonline.client.renderer.gui.AlarmClockBridge.isReminderOverlay($0) || $proceed($$); }");
+                }
+            });
     }
     @Override public void init() {
         SharedUpdateHooks.registerHost("alarmclock");

@@ -21,7 +21,10 @@ try {
     & (Join-Path $referenceRoot 'gradlew.bat') @arguments
     if ($LASTEXITCODE -ne 0) { throw 'Alarm Clock build failed' }
     $uiVerifier = Join-Path $UiKitReference 'tools\Verify-UiKitEmbedding.ps1'
-    if (Test-Path -LiteralPath $uiVerifier) { & $uiVerifier -ModJar (Join-Path $PSScriptRoot 'build\libs\alarmclock.jar') }
+    if (Test-Path -LiteralPath $uiVerifier) {
+        $uiKitJar = Join-Path $referenceRoot 'dependencies\chamomilo-ui-0.4.11.jar'
+        & $uiVerifier -ModJar (Join-Path $PSScriptRoot 'build\libs\alarmclock.jar') -ReferenceJar $uiKitJar
+    }
     $modVersion = (Select-String -LiteralPath (Join-Path $PSScriptRoot 'mods\alarmclock.properties') -Pattern '^version=(.+)$').Matches.Groups[1].Value
     & (Join-Path $referenceRoot 'tools\Verify-ModUpdater.ps1') -ModZip (Join-Path $PSScriptRoot "dist\alarmclock-$modVersion.zip") -ReferenceRoot $referenceRoot
 } finally { Pop-Location }

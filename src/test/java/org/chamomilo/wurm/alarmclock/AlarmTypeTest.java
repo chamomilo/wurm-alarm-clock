@@ -9,11 +9,14 @@ public class AlarmTypeTest {
         List<Alarm> alarms=AlarmEngine.defaults();
         AlarmType[] types={AlarmType.FOOD,AlarmType.WATER,AlarmType.PRAYER,AlarmType.MEDITATION,AlarmType.FAVOR};
         Chime[] chimes={Chime.FOOD,Chime.WATER,Chime.PRAYER,Chime.MEDITATION,Chime.FAVOR};
+        Set<Integer> colors=new HashSet<Integer>();
         for(int i=0;i<alarms.size();i++) {
             Alarm alarm=alarms.get(i);assertSame(types[i],alarm.type());alarm.validate();
             alarm.name="My alarm";alarm.message="My reminder";assertSame(types[i],alarm.type());
             assertSame(chimes[i],Chime.forAlarm(alarm));assertSame(types[i].appearance.reminderColor,alarm.reminderColor());
+            assertTrue("Each built-in has its own default color",colors.add(alarm.reminderColor().rgb()));
         }
+        assertTrue("Custom timers have a separate default color",colors.add(Alarm.create(Alarm.Kind.TIMER,"Custom","Reminder").reminderColor().rgb()));
         assertEquals(20,alarms.get(0).threshold);assertEquals(50,alarms.get(1).threshold);
         assertEquals(Arrays.asList(AlarmType.Parameter.THRESHOLD,AlarmType.Parameter.REPEAT),AlarmType.WATER.parameters());
         assertEquals(1_200_000,alarms.get(2).delayMillis);assertEquals(1_800_000,alarms.get(3).delayMillis);

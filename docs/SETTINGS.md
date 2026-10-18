@@ -4,7 +4,9 @@ Water has **Alert below (%)** and **Repeat (minutes)**, defaulting to 50% and on
 
 Each alarm has **Event message**, **On-screen message**, **Alarm clock animation**, and **Chime** checkboxes. They independently control the Event copy, large screen text, animated clock and sound. These choices are available on each card, in the alarm editor and in the shared settings editor; all are saved per alarm.
 
-Select a palette color or enter **#RRGGBB** on the card or in the alarm editor. Shared Settings also accepts **R,G,B**. The chosen color is used for Event text, large text and the animated clock, and as a darker tint on the card background. Delivery/color changes preserve running timer deadlines and reminder cadence.
+Select a palette color on the card or in the alarm editor. These controls show a color name and swatch, without a HEX input. Shared Settings accepts **#RRGGBB** or **R,G,B** for custom shades. The chosen color is used for Event text, large text and the animated clock, and as a darker tint on the card background. Delivery/color changes preserve running timer deadlines and reminder cadence.
+
+Default colors are gold for Food, light blue for Water, pink for Prayer, lavender for Meditation, mint green for Favor and orange for custom timers. On the first upgrade to this palette, previously saved standard colors adopt these defaults; saved nonstandard shades are retained. Explicit color choices saved afterward remain unchanged on future loads.
 
 Older global Sound/Animation choices are imported as each alarm's Chime/Animation defaults only when the per-alarm choices are absent. Individual choices take precedence on later loads; no global switch can suppress a selected effect.
 

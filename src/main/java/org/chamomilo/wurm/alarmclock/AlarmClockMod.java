@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.*;
 
 public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable, ModListener, SharedLanguageCoordinator.Participant {
-    public static final String VERSION = "0.3.6";
+    public static final String VERSION = "0.3.9";
     public static final FavorReadings FAVOR_READINGS = new FavorReadings();
     private static final Logger LOG = Logger.getLogger(AlarmClockMod.class.getName());
     private static volatile AlarmClockMod instance;
@@ -74,15 +74,16 @@ public final class AlarmClockMod implements WurmClientMod, PreInitable, Initable
             .insertBefore("if (org.chamomilo.wurm.alarmclock.AlarmClockMod.command($1)) return true;"));
     }
     public static void installReminderRendering(ClassPool pool) throws Exception {
-        // Wurm uses isAvailable for rendering as well as hit testing. These decorations
-        // must render while remaining unavailable to mouse focus and native presses.
-        pool.getCtClass("com.wurmonline.client.renderer.gui.Renderer").getDeclaredMethod("execute")
-            .instrument(new javassist.expr.ExprEditor() {
+        // Render decorations once, after windows, popups and native screen messages.
+        // Keep isAvailable false for native mouse focus and presses.
+        javassist.CtMethod render=pool.getCtClass("com.wurmonline.client.renderer.gui.Renderer").getDeclaredMethod("execute");
+        render.instrument(new javassist.expr.ExprEditor() {
                 @Override public void edit(javassist.expr.MethodCall call) throws javassist.CannotCompileException {
                     if(call.getClassName().equals("com.wurmonline.client.renderer.gui.WurmComponent")&&call.getMethodName().equals("isAvailable"))
-                        call.replace("{ $_ = com.wurmonline.client.renderer.gui.AlarmClockBridge.isReminderOverlay($0) || $proceed($$); }");
+                        call.replace("{ $_ = !com.wurmonline.client.renderer.gui.AlarmClockBridge.isReminderOverlay($0) && $proceed($$); }");
                 }
             });
+        render.insertAfter("com.wurmonline.client.renderer.gui.AlarmClockBridge.renderReminderOverlays(this.hud, (com.wurmonline.client.renderer.backend.Queue)$1, this.tickFraction);");
     }
     @Override public void init() {
         SharedUpdateHooks.registerHost("alarmclock");

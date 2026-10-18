@@ -5,15 +5,15 @@ import java.util.*;
 /** One catalogue for built-in identities, parameters, defaults and event presentation. */
 public enum AlarmType {
     TIMER(null, Alarm.Kind.TIMER, "timer", "Timer", "Time is up.", Rule.TIMER, 20,
-        new Appearance(Chime.TIMER, Alarm.ReminderColor.GOLD, .29f,.23f,.36f,false,false), Activity.NONE),
+        new Appearance(Chime.TIMER, Alarm.ReminderColor.ORANGE, .29f,.23f,.36f,false,false), Activity.NONE),
     FOOD("food", Alarm.Kind.FOOD, "food", "Food", "Eat, you have {percent}% food left.", Rule.PERCENTAGE, 20,
         new Appearance(Chime.FOOD, Alarm.ReminderColor.GOLD, .34f,.22f,.16f,false,false), Activity.NONE),
     WATER("water", Alarm.Kind.WATER, "water", "Water", "Drink, you have {percent}% water left.", Rule.BELOW_PERCENTAGE, 20,
-        new Appearance(Chime.WATER, Alarm.ReminderColor.GOLD, .16f,.29f,.35f,false,false), Activity.NONE),
+        new Appearance(Chime.WATER, Alarm.ReminderColor.LIGHT_BLUE, .16f,.29f,.35f,false,false), Activity.NONE),
     PRAYER("prayer", Alarm.Kind.TIMER, "prayer", "Prayer", "It's time to pray.", Rule.TIMER, 20,
-        new Appearance(Chime.PRAYER, Alarm.ReminderColor.GOLD, .33f,.29f,.16f,false,false), Activity.PRAYER),
+        new Appearance(Chime.PRAYER, Alarm.ReminderColor.PINK, .33f,.29f,.16f,false,false), Activity.PRAYER),
     MEDITATION("meditation", Alarm.Kind.TIMER, "meditation", "Meditation", "It's time to meditate.", Rule.TIMER, 30,
-        new Appearance(Chime.MEDITATION, Alarm.ReminderColor.LIGHT_BLUE, .22f,.30f,.40f,true,false), Activity.MEDITATION),
+        new Appearance(Chime.MEDITATION, Alarm.ReminderColor.LAVENDER, .22f,.30f,.40f,true,false), Activity.MEDITATION),
     FAVOR("favor", Alarm.Kind.FAVOR, "favor", "Favor", "Favor is full. It's time to cast a spell.", Rule.FULL_FAVOR, 20,
         new Appearance(Chime.FAVOR, Alarm.ReminderColor.MINT, .17f,.34f,.24f,true,true), Activity.NONE);
 

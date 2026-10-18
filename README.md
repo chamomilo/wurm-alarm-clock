@@ -2,19 +2,19 @@
 
 # Alarm Clock
 
-Reminders for food, water, prayer, meditation and full Favor in Wurm Unlimited. A draggable clock on the HUD opens the alarm list. Your alarms keep running when the list is closed.
+Keep track of food, water, prayer, meditation and full Favor in Wurm Unlimited. Open your reminders from the draggable HUD clock or the Main menu. Alarms keep running while the list is closed.
 
-**[Download Alarm Clock 0.3.6](https://github.com/chamomilo/wurm-alarm-clock/releases/download/v0.3.6/alarmclock-0.3.6.zip)** · [All releases](https://github.com/chamomilo/wurm-alarm-clock/releases) · [Report an issue](https://github.com/chamomilo/wurm-alarm-clock/issues)
+**[Download 0.3.9](https://github.com/chamomilo/wurm-alarm-clock/releases/download/v0.3.9/alarmclock-0.3.9.zip)** · [All releases](https://github.com/chamomilo/wurm-alarm-clock/releases) · [Report a problem](https://github.com/chamomilo/wurm-alarm-clock/issues)
 
-![Alarm list with separate reminder controls and colors](images/alarms.png)
+![Alarm list showing individual reminder options and palette colors](images/alarms.png)
 
-## Installation
+## Install or update
 
 1. Install the Wurm Unlimited client mod launcher.
-2. Download `alarmclock-0.3.6.zip` and extract its `mods` folder into your Wurm Unlimited client folder.
-3. Restart the client. Click the HUD clock, or choose **Alarm Clock** from the Main menu.
+2. Close the game and extract the ZIP's `mods` folder into your Wurm Unlimited client folder. Allow replacement of the existing Alarm Clock files when updating.
+3. Start the client. Click the HUD clock or select **Alarm Clock** in the Main menu.
 
-The installable ZIP contains exactly three files:
+Your saved alarms and preferences are retained. The download contains only:
 
 ```text
 README.txt
@@ -22,55 +22,67 @@ mods/alarmclock.properties
 mods/alarmclock/alarmclock.jar
 ```
 
-The shared Chamomilo updater **1.5.0**, its common Settings editor, and the Chamomilo interface kit **0.4.11** are embedded in the JAR. No separate updater installation is required. Screenshots and source files are kept in this repository.
+The shared Chamomilo updater **1.5.0**, common Settings editor and interface kit **0.4.11** are included in the JAR. No separate updater download is needed.
 
-## Built-in alarms
+## Built-in reminders
 
-| Alarm | Default behavior | Reset or stop |
+| Alarm | When it reminds you | How it resets or stops |
 | --- | --- | --- |
-| Food | Remind at 20% remaining, then at every lower whole percentage down to 5% | Eating rearms the monitor; below 5% it stays silent |
-| Water | Remind immediately below 50%, then every minute, including at 0% | Refill to 50% or higher |
-| Prayer | Remind after 20 minutes, then every minute | A successful prayer restarts the timer when **Restart after praying** is selected |
-| Meditation | Remind after 30 minutes, then every minute | A successful meditation restarts the timer when **Restart after meditation** is selected |
-| Favor | Remind when current Favor reaches Faith, then every minute while full | Spending Favor stops the reminder; refilling rearms it |
+| Food | At 20% remaining, then each lower whole percentage through 5% | Eating rearms it; below 5% it stays silent |
+| Water | Immediately below 50%, then every minute, including at 0% | Refill to 50% or higher |
+| Prayer | After 20 minutes, then every minute | Successful prayer restarts the countdown when **Restart after praying** is selected |
+| Meditation | After 30 minutes, then every minute | Successful meditation restarts the countdown when **Restart after meditation** is selected |
+| Favor | When current Favor reaches Faith, then every minute while full | Spending Favor stops reminders; refilling rearms them |
 
-Prayer and meditation timers restart after successful completion. Starting, cancelling or failing the activity leaves the timer running. **Restart** starts a fresh countdown manually.
+Starting, cancelling or failing prayer or meditation leaves its timer running. **Restart** starts a fresh countdown manually.
 
-Use **New alarm** to add custom timers or additional Food, Water and Favor monitors. A timer's repeat interval can be `0` for one reminder. Water and Favor require a positive repeat interval. Built-in alarms can be disabled; custom alarms can also be deleted.
+Choose **New alarm** to create custom timers or additional Food, Water and Favor monitors. A timer can have repeat `0` for a single reminder; Water and Favor require a positive repeat interval. Built-in alarms can be disabled, and custom alarms can also be deleted.
 
-## Choose how each alarm reminds you
+## Make each reminder your own
 
-Each alarm has four independent options:
+Every alarm has four independent switches:
 
-- **Event message** writes to Wurm's existing Event channel.
-- **On-screen message** shows large text with a three-second fade.
+- **Event message** writes to Wurm's Event channel.
+- **On-screen message** displays large text above windows and popups, fading over three seconds.
 - **Alarm clock animation** rings the HUD clock for three seconds.
-- **Chime** plays that alarm's sound. **Test chime** lets you hear it immediately.
+- **Chime** plays the alarm's sound. **Test chime** previews it immediately.
 
-Prayer has a clearer, stronger chime with three spaced notes and a soft fade. Sounds are queued so simultaneous alarms remain recognizable.
+Chimes are queued when alarms coincide. Prayer has three clear, spaced notes with a soft fade.
 
-Choose a palette color or enter `#RRGGBB` on the card or in **Edit**. The color applies to the Event message, on-screen text, animated clock and card tint. Food, Water, Prayer and custom timers default to gold, Meditation to light blue, and Favor to mint green.
+Select a named color from the palette on a card or in **Edit**. Food is gold, Water light blue, Prayer pink, Meditation lavender, Favor mint green and custom timers orange. The color applies to messages, the animated clock and the card tint. The palette shows a swatch; the common Settings editor also accepts custom `#RRGGBB` or `R,G,B` values.
 
-![Full-Favor reminder in the selected mint-green color](images/favor-reminder.png)
+![Full-Favor reminder in mint green](images/favor-reminder.png)
 
-**Disable** stops the alarm, clears its visible reminders and cancels its queued chimes. This choice is saved across client restarts and reconnects. Saving an editor opened before disabling a Food, Water or Favor monitor keeps that monitor disabled.
+**Disable** immediately stops an alarm, clears its visible reminders and cancels queued chimes. The disabled state is saved across restarts and reconnects. Saving an editor opened before disabling a Food, Water or Favor monitor keeps that monitor disabled.
 
-## Edit alarms and common settings
+## Edit an alarm
 
-**Edit** changes an alarm's name, reminder text and relevant timing or threshold parameters. Water uses **Alert below (%)** and **Repeat (minutes)**, with no lower cutoff.
+**Edit** changes the name, message and relevant timing or threshold fields. Water has **Alert below (%)** and **Repeat (minutes)**, with no lower cutoff.
 
-![Water editor with its 50 percent threshold and one-minute repeat](images/water-editor.png)
+![Water editor with threshold, repeat interval and reminder controls](images/water-editor.png)
 
-Open the shared **Mods Registry** and click **Settings** on the Alarm Clock card to edit every alarm's enabled state, text, delivery options, color and parameters in one window. Hover help explains the fields. Valid changes are saved and applied immediately; invalid input leaves the saved value intact.
+For all parameters in one place, open the shared **Mods Registry** and select **Settings** on the Alarm Clock card. Hover over a field for help. Valid changes are saved and applied immediately; invalid input preserves the saved value.
 
-![Alarm Clock settings in the shared Chamomilo Settings editor](images/settings.png)
+![Alarm Clock in the common Settings editor](images/settings.png)
 
-The shared updater selects English, Brazilian Portuguese, German or Russian for the interface. Names and messages you enter are preserved as written.
+The shared language selector supports English, Brazilian Portuguese, German and Russian. Names and messages you enter are kept as written. See [Settings details](docs/SETTINGS.md) for colors and migration behavior.
 
-## HUD and saved preferences
+## HUD and saved data
 
-Drag the HUD clock to move it. **HUD Settings** can hide or show the clock. Console command `alarmclock` opens the list; `alarmclockshow` restores the clock to its default position and shows it again.
+Drag the HUD clock to move it. **HUD Settings** can hide or show it. Console commands:
 
-Alarm settings and timer deadlines are saved in `.chamomilo/alarmclock.properties` under your Windows user folder. Existing preferences are retained when upgrading. Older Water settings migrate once to the 50% / one-minute defaults, preserving their enabled state and message.
+| Command | Action |
+| --- | --- |
+| `alarmclock` | Open the alarm list |
+| `alarmclockshow` | Show the clock at its default position |
 
-Alarms stay silent while disconnected and resume without a burst of missed reminders. The mod reminds you to act; it does not eat, drink, pray, meditate or cast spells for you.
+Alarms, preferences and timer deadlines are stored in `.chamomilo/alarmclock.properties` under your Windows user folder. Older Water settings migrate once to 50% and one minute, retaining enabled state and message. The updated default palette replaces old standard colors once and preserves nonstandard custom shades.
+
+Alarms stay silent while disconnected and resume without a burst of missed reminders. Alarm Clock provides reminders; game actions remain under your control.
+
+## In this release
+
+- Rebuilt with the current shared updater 1.5.0 and verified its complete embedded contents.
+- Reminders render above windows and popups while allowing mouse input through them.
+- Distinct default colors and a compact named palette on cards and editors; custom colors remain available in Settings.
+- Updated illustrated guide and a minimal installable ZIP.

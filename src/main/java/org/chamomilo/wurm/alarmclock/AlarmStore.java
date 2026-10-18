@@ -30,6 +30,7 @@ public final class AlarmStore {
         options.sound=Boolean.parseBoolean(p.getProperty("sound", "true"));
         options.animation=Boolean.parseBoolean(p.getProperty("animation", "true"));
         boolean legacyWater=!"below-threshold".equals(p.getProperty("waterReminderMode"));
+        boolean legacyColors=!"distinct".equals(p.getProperty("defaultColorPalette"));
         List<Alarm> alarms = new ArrayList<Alarm>();
         Map<String,Long> loadedDeadlines=new HashMap<String,Long>();
         try {
@@ -49,6 +50,12 @@ public final class AlarmStore {
                 alarm.chime=Boolean.parseBoolean(p.getProperty(key+"chime",Boolean.toString(options.sound)));
                 if(p.containsKey(key+"color"))alarm.setColor(p.getProperty(key+"color"));
                 AlarmType type=alarm.type();
+                if(legacyColors&&alarm.colorRgb!=null) {
+                    // Older releases wrote resolved default colors as if they were user overrides.
+                    Alarm.ReminderColor oldDefault=type==AlarmType.MEDITATION?Alarm.ReminderColor.LIGHT_BLUE:
+                        type.kind==Alarm.Kind.FAVOR?Alarm.ReminderColor.MINT:Alarm.ReminderColor.GOLD;
+                    if(alarm.colorRgb.intValue()==oldDefault.rgb())alarm.colorRgb=null;
+                }
                 alarm.autoRestartAfterPrayer = Boolean.parseBoolean(p.getProperty(key + "autoRestartAfterPrayer", Boolean.toString(alarm.isPrayer())));
                 alarm.autoRestartAfterMeditation = Boolean.parseBoolean(p.getProperty(key + "autoRestartAfterMeditation", Boolean.toString(alarm.isMeditation())));
                 alarm.threshold = integer(p,key+"threshold",alarm.threshold,type.has(AlarmType.Parameter.THRESHOLD));
@@ -82,6 +89,7 @@ public final class AlarmStore {
         Map<String,Long> savedDeadlines=new HashMap<String,Long>();
         Properties p = new Properties(); p.setProperty("schema", "1"); p.setProperty("language", language);
         p.setProperty("waterReminderMode","below-threshold");
+        p.setProperty("defaultColorPalette","distinct");
         p.setProperty("sound", Boolean.toString(options.sound));p.setProperty("animation", Boolean.toString(options.animation));
         p.setProperty("count", Integer.toString(alarms.size()));
         for (int i = 0; i < alarms.size(); i++) {
@@ -90,7 +98,7 @@ public final class AlarmStore {
             p.setProperty(key + "name", a.name); p.setProperty(key + "message", a.message);
             p.setProperty(key + "enabled", Boolean.toString(a.enabled));
             for(Alarm.Delivery delivery:Alarm.Delivery.values())p.setProperty(key+delivery.key,Boolean.toString(a.delivers(delivery)));
-            p.setProperty(key+"color",a.colorHex());
+            if(a.colorRgb!=null)p.setProperty(key+"color",a.colorHex());
             p.setProperty(key + "autoRestartAfterPrayer", Boolean.toString(a.autoRestartAfterPrayer));
             p.setProperty(key + "autoRestartAfterMeditation", Boolean.toString(a.autoRestartAfterMeditation));
             p.setProperty(key + "threshold", Integer.toString(a.threshold)); p.setProperty(key + "stopAt", Integer.toString(a.stopAt));

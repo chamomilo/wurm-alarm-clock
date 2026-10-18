@@ -164,7 +164,7 @@ public class AlarmEngineTest {
         engine.tick(engine.dueAt(meditation)-1,true,Float.NaN,Float.NaN);assertTrue(messages.isEmpty());
         engine.tick(engine.dueAt(meditation),true,Float.NaN,Float.NaN);
         assertEquals(Arrays.asList("It's time to meditate."),messages);assertSame(meditation,senders.get(0));
-        assertEquals(Alarm.ReminderColor.LIGHT_BLUE,senders.get(0).reminderColor());
+        assertEquals(Alarm.ReminderColor.LAVENDER,senders.get(0).reminderColor());
         assertNotEquals(prayer.reminderColor(),meditation.reminderColor());
         engine.tick(engine.dueAt(meditation)+59_999,true,Float.NaN,Float.NaN);assertEquals(1,messages.size());
         engine.tick(engine.dueAt(meditation)+60_000,true,Float.NaN,Float.NaN);assertEquals(2,messages.size());
@@ -192,7 +192,7 @@ public class AlarmEngineTest {
         old=engine.dueAt(meditation);saved=saves[0];engine.meditationCompleted(4000);
         assertFalse(meditation.enabled);assertEquals(old,engine.dueAt(meditation));assertEquals(saved,saves[0]);
         assertTrue(meditation.copy().autoRestartAfterMeditation);
-        assertEquals(Alarm.ReminderColor.GOLD,custom.reminderColor());
+        assertEquals(Alarm.ReminderColor.ORANGE,custom.reminderColor());
     }
     @Test public void favorAtCurrentFaithNotOneHundredRepeatsEachMinuteWithoutCatchupBursts() {
         Alarm favor=AlarmEngine.defaults().get(4);List<String> messages=new ArrayList<String>();

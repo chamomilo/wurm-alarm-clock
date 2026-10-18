@@ -1,5 +1,6 @@
 package com.wurmonline.client.renderer.gui;
 
+import com.wurmonline.client.renderer.backend.Queue;
 import com.wurmonline.client.settings.SavePosManager;
 import org.chamomilo.wurm.alarmclock.AlarmClockMod;
 import org.chamomilo.wurm.alarmclock.AlarmEngine;
@@ -46,9 +47,16 @@ public final class AlarmClockBridge {
         engine.onReminderCancelled(this::cancelReminder);
         engine.onPresentationChanged(this::syncPresentation);
     }
-    /** Only the render hook bypasses isAvailable; native picking continues to skip these layers. */
+    /** Reminder decorations render in a final pass; native picking still skips these layers. */
     public static boolean isReminderOverlay(WurmComponent component) {
         return component instanceof AlarmClockScreenMessages || component instanceof AlarmClockAlert;
+    }
+    public static void renderReminderOverlays(HeadsUpDisplay hud, Queue queue, float alpha) {
+        java.util.List<WurmComponent> components=hud.getComponents();
+        synchronized(components) {
+            for(WurmComponent component:components)
+                if(isReminderOverlay(component))component.render(queue,alpha);
+        }
     }
     public void remind(Alarm alarm, String message) {
         if(alarm.onScreenMessage)messages.show(alarm,message);

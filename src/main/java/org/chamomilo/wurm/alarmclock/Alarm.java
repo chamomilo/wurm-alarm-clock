@@ -12,7 +12,8 @@ public final class Alarm {
     }
     public static final class ReminderColor {
         public static final ReminderColor GOLD=new ReminderColor(1f,.94f,.60f),
-            LIGHT_BLUE=new ReminderColor(.55f,.85f,1f), MINT=new ReminderColor(.60f,.93f,.72f);
+            LIGHT_BLUE=new ReminderColor(.55f,.85f,1f), MINT=new ReminderColor(.60f,.93f,.72f),
+            PINK=fromRgb(0xFFABCC), ORANGE=fromRgb(0xFFBD80), LAVENDER=fromRgb(0xC5ADFF);
         public final float red, green, blue;
         ReminderColor(float red, float green, float blue) { this.red=red; this.green=green; this.blue=blue; }
         public int rgb() { return Math.round(red*255)<<16 | Math.round(green*255)<<8 | Math.round(blue*255); }
@@ -25,7 +26,7 @@ public final class Alarm {
     public boolean enabled = true;
     public boolean builtIn;
     public boolean eventMessage=true, onScreenMessage=true, animation=true, chime=true;
-    /** Null retains the type's original default tint. */
+    /** Null follows the type's default tint. */
     public Integer colorRgb;
     public boolean autoRestartAfterPrayer;
     public boolean autoRestartAfterMeditation;

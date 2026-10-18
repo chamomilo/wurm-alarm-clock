@@ -7,6 +7,23 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmStoreTest {
+    @Test public void oldDefaultColorsUpgradeOnceAndCustomColorsRemainSaved() throws Exception {
+        Path path=legacyFixture();Properties legacy=properties(path);
+        String[] previous={"#FFF099","#FFF099","#123456","#8CD9FF","#99EDB8"};
+        for(int i=0;i<previous.length;i++)legacy.setProperty("alarm."+i+".color",previous[i]);
+        write(path,legacy);AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();
+        assertEquals("#FFF099",alarms.get(0).colorHex());assertNull(alarms.get(0).colorRgb);
+        assertEquals("#8CD9FF",alarms.get(1).colorHex());assertNull(alarms.get(1).colorRgb);
+        assertEquals("#123456",alarms.get(2).colorHex());
+        assertEquals("#C5ADFF",alarms.get(3).colorHex());assertNull(alarms.get(3).colorRgb);
+        assertEquals("#99EDB8",alarms.get(4).colorHex());
+        alarms.get(1).setColor("#FFF099");store.save(alarms,"en");
+        assertEquals("distinct",properties(path).getProperty("defaultColorPalette"));
+        assertFalse(properties(path).containsKey("alarm.0.color"));
+        List<Alarm> restored=new AlarmStore(path).load();
+        assertEquals("Explicit colors are retained after migration", "#FFF099",restored.get(1).colorHex());
+        assertEquals("#123456",restored.get(2).colorHex());assertNull(restored.get(3).colorRgb);
+    }
     @Test public void perAlarmDeliveriesAndCustomColorsSurviveReloadWithoutGlobalGates() throws Exception {
         Path path=Files.createTempDirectory("alarm-delivery-").resolve("alarms.properties");
         AlarmStore store=new AlarmStore(path);List<Alarm> alarms=store.load();

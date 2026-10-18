@@ -182,7 +182,7 @@ public final class AlarmClockLayoutProbe {
                 }
                 check(choice.x>=p.x&&choice.y>=p.y&&choice.x+choice.width<=p.x+p.width&&choice.y+choice.height<=p.y+p.height,"Delivery checkbox stays inside its block");
             }
-            check(p.palette.x+p.palette.width<=p.color.x&&p.color.x+148<=p.x+p.width,"Palette, RGB field and color swatch fit without overlap");
+            check(p.palette.x+p.palette.width+38<=p.x+p.width,"Palette and color swatch fit without overlap");
             for(String key:new String[]{"gold","lightBlue","mint","pink","orange","lavender","white","red","customColor"})for(boolean bold:new boolean[]{false,true})
                 check(UiTypography.width(Messages.t(key),16,bold,UiDensity.LOW)<=p.palette.width-36,"Color choice clears dropdown arrow: "+Messages.language()+" "+key);
         }
@@ -225,22 +225,26 @@ public final class AlarmClockLayoutProbe {
             AlarmClockPresentation presentation=(AlarmClockPresentation)field(card.getClass(),"presentation").get(card);
             boolean before=water.eventMessage;click(presentation.choices[0]);check(water.eventMessage!=before,"Card checkbox commits its own alarm choice");
             presentation.palette.selectIndex(3);check(water.colorHex().equals("#FFABCC"),"Palette changes the selected alarm tint");
-            presentation.color.handleInput("#123456");check(water.colorHex().equals("#123456"),"RGB input commits a custom color");
             BufferedImage first=snapshot((WurmComponent)card,1f);engine.setColor(water,"#E05080");
             check(!Arrays.equals(pixels(first),pixels(snapshot((WurmComponent)card,1f))),"Chosen color changes the card background");
             AlarmClockEditor editor=new AlarmClockEditor(water,engine,()->{});editor.setLocation(20,20,770,520);
             Object draftBody=field(AlarmClockEditor.class,"body").get(editor);
             AlarmClockPresentation draft=(AlarmClockPresentation)field(draftBody.getClass(),"presentation").get(draftBody);
-            click(draft.choices[1]);draft.color.handleInput("#65A321");boolean selected=!water.onScreenMessage;
+            Alarm preserved=water.copy();draft.applyTo(preserved);check(preserved.colorHex().equals("#E05080"),"Editor retains a saved custom color without a HEX field");
+            click(draft.choices[1]);draft.palette.selectIndex(4);boolean selected=!water.onScreenMessage;
             for(String language:new String[]{"pt-BR","de","ru","en"}) {Messages.select(language);editor.relocalize();verifyPresentationBounds(editor);}
             click((WButton)field(draftBody.getClass(),"save").get(draftBody));
-            check(engine.alarms().get(1).onScreenMessage==selected&&engine.alarms().get(1).colorHex().equals("#65A321"),"Editor preserves and saves delivery/color drafts through language switches");
+            check(engine.alarms().get(1).onScreenMessage==selected&&engine.alarms().get(1).colorHex().equals("#FFBD80"),"Editor preserves and saves delivery/color drafts through language switches");
         } finally {bridge.dispose();Messages.select("en");}
     }
     private static void verifyNativeReminderRendering() throws Exception {
         HeadsUpDisplay hud=WurmComponent.hud;
+        Field visible=field(HeadsUpDisplay.class,"visible");boolean wasVisible=visible.getBoolean(hud);visible.setBoolean(hud,true);
         AlarmEngine engine=new AlarmEngine(AlarmEngine.defaults(),(a,m)->{},()->{});
         AlarmClockBridge bridge=new AlarmClockBridge(hud,engine,()->false);
+        StaticComponent coveringWindow=new StaticComponent("Opaque window",0,0,WurmComponent.SCREEN_WIDTH,WurmComponent.SCREEN_HEIGHT) {
+            @Override protected void renderComponent(Queue queue,float alpha) { fillRect(queue,.10f,.14f,.20f,1f,x,y,width,height); }
+        };
         try {
             Alarm water=engine.alarms().get(1);water.chime=false;bridge.remind(water,"WATER RENDER REGRESSION");bridge.tick(System.currentTimeMillis());
             Renderer renderer=(Renderer)allocate(Renderer.class);
@@ -256,7 +260,24 @@ public final class AlarmClockLayoutProbe {
             check(!Arrays.equals(pixels(second),pixels(snapshot(frame,1f))),"Actual Wurm renderer draws moving clock frames");
             check(!alert.isAvailable(),"Animation remains unavailable to native picking");verifyOverlayInput(alert);
             ImageIO.write(first,"png",output.resolve("water-native-hud.png").toFile());previews++;
-        } finally {bridge.dispose();}
+            AlarmClockScreenMessages messages=(AlarmClockScreenMessages)field(AlarmClockBridge.class,"messages").get(bridge);
+            StaticComponent foreground=new StaticComponent("Expected foreground",0,0,WurmComponent.SCREEN_WIDTH,WurmComponent.SCREEN_HEIGHT) {
+                @Override protected void renderComponent(Queue queue,float alpha) {
+                    coveringWindow.render(queue,alpha);messages.render(queue,alpha);alert.render(queue,alpha);
+                }
+            };
+            for(boolean animation:new boolean[]{false,true})for(boolean openedDuringReminder:new boolean[]{false,true}) {
+                bridge.stopEffects();hud.getComponents().remove(coveringWindow);water.animation=animation;
+                if(!openedDuringReminder)hud.getComponents().add(coveringWindow);
+                bridge.remind(water,"WATER ABOVE WINDOWS");bridge.tick(System.currentTimeMillis());
+                if(openedDuringReminder)hud.getComponents().add(coveringWindow);
+                if(animation)previewTime=field(AlarmClockAlert.class,"started").getLong(alert)+300;
+                BufferedImage expected=snapshot(foreground,1f),actual=snapshot(frame,1f);
+                check(Arrays.equals(pixels(expected),pixels(actual)),"Reminder text and animation render above an opaque window: animation="+animation+", opened during reminder="+openedDuringReminder);
+                check(hud.getComponentAt(960,270)==coveringWindow,"Foreground reminders leave the covering window available to mouse input");
+                ImageIO.write(actual,"png",output.resolve("water-above-window-"+animation+"-"+openedDuringReminder+".png").toFile());previews++;
+            }
+        } finally {hud.getComponents().remove(coveringWindow);bridge.dispose();visible.setBoolean(hud,wasVisible);}
     }
     private static void verifyScroll(AlarmClockWindow window,AlarmEngine engine) throws Exception {
         for(int i=0;i<8;i++)engine.put(Alarm.create(Alarm.Kind.TIMER,"Custom timer "+(i+1),"Reminder "+(i+1)),System.currentTimeMillis());
@@ -527,11 +548,11 @@ public final class AlarmClockLayoutProbe {
             engine.tick(1000,true,.20f,Float.NaN);
             verifySystemMessage(messages,"Eat, you have 20% food left.",new Color(1f,.94f,.60f),"food");
             messages.clear();engine.tick(2000,true,Float.NaN,.20f);
-            verifySystemMessage(messages,"Drink, you have 20% water left.",new Color(1f,.94f,.60f),"water");
+            verifySystemMessage(messages,"Drink, you have 20% water left.",new Color(.55f,.85f,1f),"water");
             messages.clear();engine.tick(5000,true,Float.NaN,Float.NaN);
-            verifySystemMessage(messages,"It's time to pray.",new Color(1f,.94f,.60f),"prayer");
+            verifySystemMessage(messages,"It's time to pray.",new Color(0xFFABCC),"prayer");
             messages.clear();engine.tick(6000,true,Float.NaN,Float.NaN);
-            verifySystemMessage(messages,"It's time to meditate.",new Color(.55f,.85f,1f),"meditation");
+            verifySystemMessage(messages,"It's time to meditate.",new Color(0xC5ADFF),"meditation");
             messages.clear();engine.tick(6250,true,Float.NaN,Float.NaN,65,65);
             verifySystemMessage(messages,engine.alarms().get(4).message,new Color(.60f,.93f,.72f),"favor");
             check(eventMessages.size()==eventStart+5,"Each fired reminder is duplicated in Event exactly once even with sound/animation off");

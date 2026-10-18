@@ -1,4 +1,4 @@
-Chamomilo Alarm Clock 0.3.9
+Chamomilo Alarm Clock 0.3.10
 https://github.com/chamomilo/wurm-alarm-clock
 
 Food, water, prayer, meditation and full-Favor reminders for Wurm Unlimited.
@@ -19,6 +19,12 @@ Saved alarms and preferences are retained. This ZIP contains exactly:
 The shared Chamomilo updater 1.5.0, common Settings editor and interface kit
 0.4.11 are embedded in the JAR. No separate updater download is needed.
 Illustrated guide: https://github.com/chamomilo/wurm-alarm-clock#readme
+
+ALL ALARMS
+All on and All off beside New alarm enable or disable every built-in and custom
+alarm. All on keeps running timers on schedule and starts fresh countdowns for
+disabled timers. All off clears active reminders and queued chimes immediately.
+Changes are saved.
 
 BUILT-IN REMINDERS
 Food: at 20% remaining, then each lower whole percentage through 5%.
@@ -83,8 +89,8 @@ Alarms stay silent while disconnected and resume without a burst of missed
 reminders. Alarm Clock provides reminders; game actions remain under your control.
 
 IN THIS RELEASE
-Current shared updater 1.5.0, reminders above windows/popups, distinct default
-colors and a compact palette, updated illustrated guide and minimal ZIP.
+All on and All off next to New alarm control all built-in and custom alarms.
+Running timers retain their deadlines; bulk changes are saved together.
 
 Support: https://github.com/chamomilo/wurm-alarm-clock/issues
 Releases: https://github.com/chamomilo/wurm-alarm-clock/releases

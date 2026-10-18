@@ -4,7 +4,7 @@
 
 Keep track of food, water, prayer, meditation and full Favor in Wurm Unlimited. Open your reminders from the draggable HUD clock or the Main menu. Alarms keep running while the list is closed.
 
-**[Download 0.3.9](https://github.com/chamomilo/wurm-alarm-clock/releases/download/v0.3.9/alarmclock-0.3.9.zip)** · [All releases](https://github.com/chamomilo/wurm-alarm-clock/releases) · [Report a problem](https://github.com/chamomilo/wurm-alarm-clock/issues)
+**[Download 0.3.10](https://github.com/chamomilo/wurm-alarm-clock/releases/download/v0.3.10/alarmclock-0.3.10.zip)** · [All releases](https://github.com/chamomilo/wurm-alarm-clock/releases) · [Report a problem](https://github.com/chamomilo/wurm-alarm-clock/issues)
 
 ![Alarm list showing individual reminder options and palette colors](images/alarms.png)
 
@@ -23,6 +23,8 @@ mods/alarmclock/alarmclock.jar
 ```
 
 The shared Chamomilo updater **1.5.0**, common Settings editor and interface kit **0.4.11** are included in the JAR. No separate updater download is needed.
+
+Use **All on** and **All off** beside **New alarm** to enable or disable every built-in and custom alarm. All on keeps already running timers on schedule and starts fresh countdowns for disabled timers. All off immediately clears active reminders and queued chimes. Changes are saved.
 
 ## Built-in reminders
 
@@ -82,7 +84,6 @@ Alarms stay silent while disconnected and resume without a burst of missed remin
 
 ## In this release
 
-- Rebuilt with the current shared updater 1.5.0 and verified its complete embedded contents.
-- Reminders render above windows and popups while allowing mouse input through them.
-- Distinct default colors and a compact named palette on cards and editors; custom colors remain available in Settings.
-- Updated illustrated guide and a minimal installable ZIP.
+- Added **All on** and **All off** next to **New alarm** for all built-in and custom alarms.
+- Bulk changes are saved together; running timers keep their deadlines when All on is pressed.
+- All off immediately clears visible reminders and cancels queued chimes.

@@ -154,10 +154,26 @@ public final class AlarmEngine {
         alarm.enabled = true; state.dueAt = now + alarm.delayMillis; state.nextReminder = 0; state.lastPercent = 101;
     }
     public void toggle(Alarm alarm, long now) {
-        AlarmRuntimeState state=state(alarm);state.nextReminder = 0;
-        if (alarm.enabled) { alarm.enabled = false; cancelReminder.accept(alarm); }
-        else { alarm.enabled = true; if (alarm.type().has(AlarmType.Parameter.DELAY)) restartWithoutSave(alarm, now); else state.lastPercent = 101; }
+        setEnabledWithoutSave(alarm, !alarm.enabled, now);
         save.run();
+    }
+    /** Bulk enable preserves running timers; bulk disable cancels every active reminder. */
+    public void setAllEnabled(boolean enabled, long now) {
+        boolean changed = false;
+        for (Alarm alarm : alarms) {
+            boolean stateChanged = alarm.enabled != enabled;
+            // A completed one-shot timer can still have a visible or queued reminder.
+            if (!enabled || stateChanged) setEnabledWithoutSave(alarm, enabled, now);
+            changed |= stateChanged;
+        }
+        if (changed) save.run();
+    }
+    private void setEnabledWithoutSave(Alarm alarm, boolean enabled, long now) {
+        AlarmRuntimeState state=state(alarm);state.nextReminder = 0;
+        alarm.enabled = enabled;
+        if (!enabled) cancelReminder.accept(alarm);
+        else if (alarm.type().has(AlarmType.Parameter.DELAY)) restartWithoutSave(alarm, now);
+        else state.lastPercent = 101;
     }
     public void put(Alarm edited, long now) {
         edited.validate();

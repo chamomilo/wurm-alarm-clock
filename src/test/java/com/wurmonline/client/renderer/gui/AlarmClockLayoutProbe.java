@@ -48,7 +48,7 @@ public final class AlarmClockLayoutProbe {
         AlarmClockWindow window=new AlarmClockWindow(engine,()->false,a->previewChimes.add(Chime.forAlarm(a)));
         window.setLocation(20,20,780,710);
         preview("alarms-en",window);
-        verifyToolbar(window);verifyActions(window,engine);verifyScroll(window,engine);
+        verifyToolbar(window);verifyActions(window,engine);verifyBulkActions(window,engine);verifyScroll(window,engine);
         verifyFavorHudToggle();
         verifyLauncher();
         verifyHudLifecycle();
@@ -75,7 +75,7 @@ public final class AlarmClockLayoutProbe {
             Messages.select(language);window.relocalize();editor.relocalize();
             check(name.value().equals("Custom prayer reminder")&&message.value().equals("It's time to pray.")&&delay.value().equals("20"),"Language switch preserves unsaved fields");
             preview("alarms-"+language,window);preview("editor-"+language,editor);verifyToolbar(window);verifyAutoRestartChoiceBounds(window);verifyEditorBounds(editor);
-            window.setLocation(20,20,720,370);window.gameTick();verifyAutoRestartChoiceBounds(window);verifyPresentationBounds(window);
+            window.setLocation(20,20,720,370);window.gameTick();verifyToolbar(window);verifyAutoRestartChoiceBounds(window);verifyPresentationBounds(window);
             window.setLocation(20,20,780,710);window.gameTick();
         }
         Messages.select("en");editor.relocalize();
@@ -123,7 +123,17 @@ public final class AlarmClockLayoutProbe {
         check(!labels.containsKey(Messages.t("intro"))&&!labels.containsKey("Alarm Clock "+AlarmClockMod.VERSION),"Crossed-out instruction and version lines are removed");
         Object body=field(AlarmClockWindow.class,"body").get(window);
         ChamomiloSkinnedButton create=(ChamomiloSkinnedButton)field(body.getClass(),"create").get(body);
-        for(ChamomiloSkinnedButton b:new ChamomiloSkinnedButton[]{create}) for(boolean bold:new boolean[]{false,true}) {
+        ChamomiloSkinnedButton allOn=(ChamomiloSkinnedButton)field(body.getClass(),"allOn").get(body);
+        ChamomiloSkinnedButton allOff=(ChamomiloSkinnedButton)field(body.getClass(),"allOff").get(body);
+        check(allOn.getLabel().equals(Messages.t("allOn"))&&allOff.getLabel().equals(Messages.t("allOff")),"Bulk actions use the selected language");
+        check(create.x+create.width+8==allOn.x&&allOn.x+allOn.width+8==allOff.x,"New alarm, All on and All off share one row with 8 px gaps");
+        check(allOff.x+allOff.width<=((WurmComponent)body).x+((WurmComponent)body).width,"Bulk toolbar fits the minimum window width");
+        for(ChamomiloSkinnedButton b:new ChamomiloSkinnedButton[]{create,allOn,allOff}) {
+            check(b.y==create.y&&b.height==32,"Toolbar buttons share a 32 px row");
+            check(b.captionFontPixels()==create.captionFontPixels()&&b.captionBaseline()==create.captionBaseline(),"Toolbar peers share font size and baseline");
+            check(((FlexComponent)body).getComponentAt(b.x+b.width/2,b.y+b.height/2)==b,"Toolbar hit testing reaches every action");
+        }
+        for(ChamomiloSkinnedButton b:new ChamomiloSkinnedButton[]{create,allOn,allOff}) for(boolean bold:new boolean[]{false,true}) {
             Rectangle ink=UiTypography.ink(b.getLabel(),b.captionFontPixels(),bold,UiDensity.HIGH);
             check(UiTypography.width(b.getLabel(),b.captionFontPixels(),bold,UiDensity.HIGH)<=b.width-8,"Toolbar caption clears sides");
             check(b.captionBaseline()+ink.y>=3&&b.captionBaseline()+ink.y+ink.height<=b.height-3,"Toolbar glyph ink clears top/bottom");
@@ -169,6 +179,27 @@ public final class AlarmClockLayoutProbe {
         buttons=(java.util.List<?>)field(cards.get(4).getClass(),"buttons").get(cards.get(4));
         click((WButton)buttons.get(1));check(favor.enabled,"Favor can be re-enabled from its own card");
         verifyAutoRestartChoiceBounds(window);
+    }
+    private static void verifyBulkActions(AlarmClockWindow window,AlarmEngine engine) throws Exception {
+        Object body=field(AlarmClockWindow.class,"body").get(window);
+        WButton allOff=(WButton)field(body.getClass(),"allOff").get(body);
+        allOff.leftPressed(allOff.x+10,allOff.y+10,1);
+        allOff.mouseDragged(allOff.x+allOff.width+10,allOff.y+10);allOff.leftReleased(allOff.x+allOff.width+10,allOff.y+10);
+        for(Alarm alarm:engine.alarms())check(alarm.enabled,"Releasing outside All off cancels the bulk action");
+        click(allOff);
+        for(Alarm alarm:engine.alarms())check(!alarm.enabled,"Completed All off click disables every alarm");
+        preview("alarms-all-off",window);
+        Object list=field(body.getClass(),"list").get(body);
+        for(Object card:(java.util.List<?>)field(list.getClass(),"cards").get(list)) {
+            java.util.List<?> buttons=(java.util.List<?>)field(card.getClass(),"buttons").get(card);
+            check(((WButton)buttons.get(1)).getLabel().equals(Messages.t("enable")),"All off refreshes every row action");
+        }
+        click((WButton)field(body.getClass(),"allOn").get(body));
+        for(Alarm alarm:engine.alarms())check(alarm.enabled,"Completed All on click enables every alarm");
+        Alarm prayer=engine.alarms().get(2);long due=engine.dueAt(prayer);
+        click((WButton)field(body.getClass(),"allOn").get(body));
+        check(engine.dueAt(prayer)==due,"Repeated All on keeps a running timer deadline");
+        verifyToolbar(window);
     }
     private static void verifyPresentationBounds(WurmComponent root) throws Exception {
         for(WurmComponent node:tree(root))if(node instanceof AlarmClockPresentation) {

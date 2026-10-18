@@ -11,6 +11,10 @@ public final class Messages {
         add("title", "Alarm Clock", "Despertador", "Wecker", "Будильник");
         add("launcher", "Alarm Clock icon", "Ícone do despertador", "Wecker-Symbol", "Ярлык будильника");
         add("new", "New alarm", "Novo alarme", "Neuer Alarm", "Новый будильник");
+        add("allOn", "All on", "Ativar todos", "Alle an", "Включить все");
+        add("allOff", "All off", "Desativar todos", "Alle aus", "Выключить все");
+        add("allOnHint", "Enable every alarm. Already running timers keep their deadlines.", "Ativa todos os alarmes. Temporizadores em andamento mantêm seus prazos.", "Aktiviert alle Alarme. Laufende Timer behalten ihre Fristen.", "Включить все будильники. Уже работающие таймеры сохраняют время срабатывания.");
+        add("allOffHint", "Disable every alarm and stop active reminders and queued chimes.", "Desativa todos os alarmes e interrompe lembretes ativos e sons na fila.", "Deaktiviert alle Alarme und beendet aktive Erinnerungen und wartende Klänge.", "Выключить все будильники, убрать активные напоминания и отменить звуки в очереди.");
         add("eventMessage","Event message","Mensagem no Event","Event-Meldung","Сообщение в Event");
         add("onScreenMessage","On-screen message","Mensagem na tela","Bildschirmmeldung","Сообщение на экране");
         add("alarmAnimation","Alarm clock animation","Animação do despertador","Weckeranimation","Анимация будильника");

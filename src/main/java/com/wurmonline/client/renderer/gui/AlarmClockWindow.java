@@ -113,20 +113,27 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
     private final class Body extends FlexComponent {
         private final ListContent list = new ListContent();
         private final ChamomiloUiV1ScrollPanel scroll = new ChamomiloUiV1ScrollPanel("alarmclock.list.scroll", list, false, true);
-        private ChamomiloSkinnedButton create;
+        private ChamomiloSkinnedButton create, allOn, allOff;
         private boolean showingSaveFailure;
         Body() { super("alarmclock.body"); scroll.parent = this; scroll.setScale(scale); }
         void refresh() {
-            // Named standard group: alarmclock.toolbar.
+            // Named standard group: alarmclock.toolbar; one row of 180x32 HIGH peers,
+            // sharing the active language's font size and baseline in both weights.
             ChamomiloSkinnedButton.CaptionGroup group = new ChamomiloSkinnedButton.CaptionGroup(
-                    new String[]{Messages.t("new")}, new int[]{180}, 32, scale);
+                    new String[]{Messages.t("new"),Messages.t("allOn"),Messages.t("allOff")}, new int[]{180,180,180}, 32, scale);
             create = action(Messages.t("new"), 180, group, () -> edit(null));
-            create.parent = this;
+            allOn = action(Messages.t("allOn"), 180, group, () -> { engine.setAllEnabled(true,System.currentTimeMillis()); refresh(); });
+            allOff = action(Messages.t("allOff"), 180, group, () -> { engine.setAllEnabled(false,System.currentTimeMillis()); refresh(); });
+            allOn.setHoverString(Messages.t("allOnHint"));
+            allOff.setHoverString(Messages.t("allOffHint"));
+            create.parent = allOn.parent = allOff.parent = this;
             list.rebuild(); componentResized();
         }
         @Override void componentResized() {
-            if (scroll == null || create == null) return;
+            if (scroll == null || create == null || allOn == null || allOff == null) return;
             create.setLocation(x, y, 180, 32);
+            allOn.setLocation(x+188, y, 180, 32);
+            allOff.setLocation(x+376, y, 180, 32);
             int listWidth = Math.max(630, width-18);
             list.resize(listWidth);
             showingSaveFailure=saveFailed.getAsBoolean();
@@ -135,6 +142,8 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
         @Override public FlexComponent getComponentAt(int mx,int my) {
             if (!contains(mx,my)) return null;
             if (create.contains(mx,my)) return create;
+            if (allOn.contains(mx,my)) return allOn;
+            if (allOff.contains(mx,my)) return allOff;
             if (scroll.contains(mx,my)) return scroll.getComponentAt(mx,my);
             return this;
         }
@@ -143,7 +152,7 @@ public final class AlarmClockWindow extends ChamomiloUiV1Window {
             scroll.gameTick();
         }
         @Override protected void renderComponent(Queue queue,float ignoredAlpha) {
-            create.render(queue,1f);
+            create.render(queue,1f); allOn.render(queue,1f); allOff.render(queue,1f);
             scroll.render(queue,1f);
             if(saveFailed.getAsBoolean())paintText(queue,text,Messages.t("saveFailed"),x,y+height-8,width,UiColor.DANGER);
         }

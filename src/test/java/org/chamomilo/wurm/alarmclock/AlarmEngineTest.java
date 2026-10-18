@@ -5,6 +5,50 @@ import java.util.*;
 import static org.junit.Assert.*;
 
 public class AlarmEngineTest {
+    @Test public void bulkSwitchesCoverCustomAlarmsCancelRemindersAndSaveOnce() {
+        List<Alarm> alarms=AlarmEngine.defaults();
+        Alarm custom=Alarm.create(Alarm.Kind.TIMER,"Custom","My reminder");
+        custom.delayMillis=1000;alarms.add(custom);
+        int[] saves={0};List<String> cancelled=new ArrayList<String>(),messages=new ArrayList<String>();
+        AlarmEngine engine=new AlarmEngine(alarms,(a,m)->messages.add(m),()->saves[0]++);
+        engine.onReminderCancelled(alarm->cancelled.add(alarm.id));
+        engine.tick(1000,true,.19f,.2f,50,50);
+        Alarm prayer=alarms.get(2);long prayerDue=engine.dueAt(prayer);
+        engine.toggle(custom,1250);cancelled.clear();saves[0]=0;
+        engine.setAllEnabled(true,2000);
+        assertEquals(1,saves[0]);assertEquals(3000,engine.dueAt(custom));
+        assertEquals(prayerDue,engine.dueAt(prayer));
+        assertEquals(61_000,engine.nextReminderAt(alarms.get(1)));
+        engine.setAllEnabled(true,2500);
+        assertEquals(1,saves[0]);assertEquals(3000,engine.dueAt(custom));
+        assertTrue(cancelled.isEmpty());
+        engine.setAllEnabled(false,2600);
+        assertEquals(2,saves[0]);assertEquals(alarms.size(),cancelled.size());
+        for(Alarm alarm:alarms) {assertFalse(alarm.enabled);assertTrue(cancelled.contains(alarm.id));}
+        int delivered=messages.size();engine.tick(9_000_000,true,.05f,0,50,50);
+        assertEquals(delivered,messages.size());
+        engine.setAllEnabled(false,9_000_001);
+        assertEquals(2,saves[0]);assertEquals(2*alarms.size(),cancelled.size());
+        engine.setAllEnabled(true,10_000_000);
+        assertEquals(3,saves[0]);
+        for(Alarm alarm:alarms)assertTrue(alarm.enabled);
+        assertEquals(10_000_000+prayer.delayMillis,engine.dueAt(prayer));
+        assertEquals(10_001_000,engine.dueAt(custom));
+        engine.tick(10_000_000,true,.05f,0,50,50);
+        assertEquals(delivered+3,messages.size());
+        assertEquals("My reminder",custom.message);
+    }
+    @Test public void allOffAlsoCancelsTheReminderOfAnAlreadyCompletedOneShotTimer() {
+        Alarm alarm=Alarm.create(Alarm.Kind.TIMER,"One shot","Finished");
+        alarm.delayMillis=1000;alarm.repeatMillis=0;
+        List<String> visible=new ArrayList<String>();int[] saves={0};
+        AlarmEngine engine=new AlarmEngine(Collections.singletonList(alarm),(a,m)->visible.add(a.id),()->saves[0]++);
+        engine.onReminderCancelled(a->visible.remove(a.id));
+        engine.tick(1000,true,1,1);engine.tick(2000,true,1,1);
+        assertFalse(alarm.enabled);assertEquals(Collections.singletonList(alarm.id),visible);
+        int saved=saves[0];engine.setAllEnabled(false,2100);
+        assertTrue(visible.isEmpty());assertEquals(saved,saves[0]);
+    }
     @Test public void settingsEditsKeepTimerDeadlineExceptForAnExplicitDelayOrReenable() {
         Alarm timer=Alarm.create(Alarm.Kind.TIMER,"Test","Message");
         AlarmEngine engine=new AlarmEngine(Arrays.asList(timer),(a,m)->{},()->{});
